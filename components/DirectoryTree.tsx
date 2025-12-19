@@ -83,7 +83,9 @@ export function DirectoryTree({ tree, currentDir, onSelectDir }: Props) {
 
   const renderNode = (node: TreeNode) => {
     const active = node.path === currentDir;
-    const open = expanded.has(node.path);
+	const expandable = hasChildren(node);
+	const expandedOpen = expanded.has(node.path);
+	const open = expandable ? expandedOpen : active;
     const isAncestor = ancestorPaths.includes(node.path);
 
     return (
@@ -98,14 +100,14 @@ export function DirectoryTree({ tree, currentDir, onSelectDir }: Props) {
             .filter(Boolean)
             .join(" ")}
         >
-          {hasChildren(node) ? (
+          {expandable ? (
             <button
               type="button"
               className="tree-toggle"
               onClick={() => toggle(node.path)}
-              aria-label={open ? "collapse" : "expand"}
+              aria-label={expandedOpen ? "collapse" : "expand"}
             >
-              <FontAwesomeIcon icon={open ? faChevronDown : faChevronRight} />
+              <FontAwesomeIcon icon={expandedOpen ? faChevronDown : faChevronRight} />
             </button>
           ) : (
             <span className="tree-toggle tree-toggle-spacer" />
@@ -125,7 +127,7 @@ export function DirectoryTree({ tree, currentDir, onSelectDir }: Props) {
           </button>
         </div>
 
-        {hasChildren(node) && open && (
+        {expandable && expandedOpen && (
           <ul className="tree-children">
             {node.children.map((c) => renderNode(c))}
           </ul>
