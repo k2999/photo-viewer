@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { paramsToDir, dirToUrl, parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
@@ -16,6 +16,7 @@ import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 
 const GRID_COLS = 6;
+const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
 export default function PhotoViewerPage() {
   const router = useRouter();
@@ -70,8 +71,62 @@ export default function PhotoViewerPage() {
 
   const goParent = useCallback(() => {
     if (normalizeDir(currentPath) === ".") return;
-    pushDir(parentDir(currentPath));
+    const prev = normalizeDir(currentPath);
+    const next = normalizeDir(parentDir(currentPath));
+    try {
+      sessionStorage.setItem(
+        PENDING_KEY,
+        JSON.stringify({
+          targetDir: next,
+          kind: "entryByRelativePath",
+          relativePath: prev,
+          ts: Date.now(),
+        })
+      );
+    } catch {
+    }
+    pushDir(next);
   }, [currentPath, pushDir]);
+
+  // 親へ戻った直後、entries が揃ったら「元いた子フォルダ」を選択する（1回限り）
+  useEffect(() => {
+    if (!entries || entries.length === 0) return;
+
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(PENDING_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+
+    let payload: any;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      try { sessionStorage.removeItem(PENDING_KEY); } catch {}
+      return;
+    }
+
+    // このディレクトリに入ったときだけ適用
+    if (payload?.targetDir !== normalizeDir(currentPath)) return;
+
+    if (
+      payload?.kind === "entryByRelativePath" &&
+      typeof payload?.relativePath === "string"
+    ) {
+      const want = normalizeDir(payload.relativePath);
+      const idx = entries.findIndex(
+        (e) => e.type === "dir" && normalizeDir(e.relativePath) === want
+      );
+      if (idx >= 0) {
+        setSelectedIndex(idx);
+      }
+    }
+
+    // 1回限りで消費
+    try { sessionStorage.removeItem(PENDING_KEY); } catch {}
+  }, [currentPath, entries, setSelectedIndex]);
 
   useKeyboardNav({
     entriesLength: entries.length,
