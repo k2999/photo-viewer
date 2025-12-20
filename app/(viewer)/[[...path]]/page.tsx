@@ -14,6 +14,7 @@ import { useScrollFollowSelected } from "@/hooks/useScrollFollowSelected";
 import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
+import { ThumbImage } from "@/components/ThumbImage";
 
 const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
@@ -64,6 +65,8 @@ export default function PhotoViewerPage() {
 
   const pushDir = useCallback(
     (dirPath: string) => {
+      resetDirThumbs();
+      resetChecked();
       router.push(dirToUrl(dirPath));
     },
     [router]
@@ -176,9 +179,8 @@ export default function PhotoViewerPage() {
 
             const thumb =
               e.type === "image" || e.type === "video" ? (
-                <img
+                <ThumbImage
                   src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
-                  loading="lazy"
                   alt={e.name}
                 />
               ) : e.type === "dir" ? (
