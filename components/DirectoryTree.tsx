@@ -82,11 +82,13 @@ export function DirectoryTree({ tree, currentDir, onSelectDir }: Props) {
   }, [currentDir]);
 
   const renderNode = (node: TreeNode) => {
+    const isRoot = node.path === '.';
     const active = node.path === currentDir;
 	const expandable = hasChildren(node);
-	const expandedOpen = expanded.has(node.path);
+	const expandedOpen = expanded.has(node.path) || isRoot;
 	const open = expandable ? expandedOpen : active;
     const isAncestor = ancestorPaths.includes(node.path);
+	console.log({nodePath: node.path, currentDir, expandable, expandedOpen, open, isAncestor});
 
     return (
       <li key={node.path} className="tree-item">
