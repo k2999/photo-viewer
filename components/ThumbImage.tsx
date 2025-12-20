@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { ThumbFetchImage } from "@/components/ThumbFetchImage";
 
 type Props = {
   src: string;
@@ -48,13 +49,9 @@ export function ThumbImage({
       style={{ display: "block", width: "100%", height: "100%" }}
     >
       {enabled ? (
-        <img
+        <ThumbFetchImage
           src={actualSrc}
           alt={alt}
-          loading="lazy"
-          decoding="async"
-          fetchPriority="low"
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (
         // ここは見た目に合わせてスケルトン等

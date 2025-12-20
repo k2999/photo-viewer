@@ -12,7 +12,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [tree, setTree] = useState<TreeNode | null>(null);
 
-  const { selectedEntry } = useViewer();
+  const { selectedEntry, bumpNavGen, endNavigating } = useViewer();
 
   const currentDir = useMemo(() => pathnameToDir(pathname), [pathname]);
 
@@ -22,6 +22,11 @@ export function ViewerShell({ children }: { children: ReactNode }) {
       .then((data) => setTree(data.tree ?? null))
       .catch(() => setTree(null));
   }, []);
+
+  // ルート（URL）が変わったら「遷移中」を解除
+  useEffect(() => {
+    endNavigating();
+  }, [pathname, endNavigating]);
 
   return (
     <div className="app-root">
@@ -38,6 +43,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
           className="sidebar-button"
           onClick={() => {
             if (normalizeDir(currentDir) === ".") return;
+            bumpNavGen();
             router.push(dirToUrl(parentDir(currentDir)));
           }}
         >
@@ -48,6 +54,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
           tree={tree}
           currentDir={currentDir}
           onSelectDir={(p) => {
+            bumpNavGen();
             router.push(dirToUrl(p));
           }}
         />

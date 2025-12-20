@@ -15,6 +15,7 @@ import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
+import { useViewer } from "@/components/ViewerContext";
 
 const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
@@ -27,7 +28,7 @@ export default function PhotoViewerPage() {
     return paramsToDir(params?.path);
   }, [params]);
 
-  const { dirThumbs, fetchDirThumbs, resetDirThumbs } = useDirThumbs();
+  const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
   const {
     entries,
@@ -63,13 +64,15 @@ export default function PhotoViewerPage() {
 
   useSelectedEntrySync(selectedEntry);
 
+  const { bumpNavGen } = useViewer();
+
   const pushDir = useCallback(
     (dirPath: string) => {
-      resetDirThumbs();
-      resetChecked();
+      abortAllDirThumbs();
+      bumpNavGen();
       router.push(dirToUrl(dirPath));
     },
-    [router]
+    [abortAllDirThumbs, bumpNavGen, router]
   );
 
   const goParent = useCallback(() => {
@@ -165,7 +168,7 @@ export default function PhotoViewerPage() {
       />
 
       <div className="grid-container">
-        <div className="grid">
+        <div className="grid" key={currentPath}>
           {entries.map((e, idx) => {
             const isSelected = idx === selectedIndex;
             const isChecked = checked.has(e.relativePath);

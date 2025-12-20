@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ThumbFetchImage } from "@/components/ThumbFetchImage";
 
 export type DirThumbGridProps = {
   dirPath: string;
@@ -47,11 +48,10 @@ export function DirThumbGrid({
     return (
       <div ref={setEl} className="dir-thumbs">
         {list.map((p) => (
-          <img
+          <ThumbFetchImage
             key={p}
             src={`/api/thumb?path=${encodeURIComponent(p)}`}
-            loading="lazy"
-            alt=""
+            alt={''}
           />
         ))}
         {Array.from({ length: empty }).map((_, i) => (

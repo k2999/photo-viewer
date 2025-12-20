@@ -20,6 +20,9 @@ export function useDirEntries(currentPath: string) {
     // 前回のリクエストが残っていれば中断
     abortRef.current?.abort();
 
+    setEntries([]);
+    resetViewState();
+
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -34,14 +37,11 @@ export function useDirEntries(currentPath: string) {
         const list: Entry[] = data.entries ?? [];
         list.sort((a, b) => a.name.localeCompare(b.name));
         setEntries(list);
-        resetViewState();
       })
       .catch((err) => {
         // abort は正常系として扱う（ログ汚染を避ける）
         if (controller.signal.aborted) return;
         console.error(err);
-        setEntries([]);
-        resetViewState();
       });
   }, [currentPath, resetViewState]);
 
