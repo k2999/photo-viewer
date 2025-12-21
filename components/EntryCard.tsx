@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
 
 export type EntryCardProps = {
   idx: number;
@@ -47,11 +49,25 @@ export function EntryCard({
       </div>
 
       <div className="card-check">
-        <input
-          type="checkbox"
-          checked={isChecked}
-          onChange={onCheckboxChange}
-        />
+        <label className="card-check-label" onClick={(e) => e.stopPropagation()}>
+          <input
+            className="card-check-input"
+            type="checkbox"
+            checked={isChecked}
+            onChange={onCheckboxChange}
+          />
+          <span
+            className={[
+              "card-check-box",
+              isChecked ? "is-checked" : "",
+            ].filter(Boolean).join(" ")}
+            aria-hidden="true"
+          >
+            {isChecked && (
+              <FontAwesomeIcon icon={faCheck} className="card-check-icon" />
+            )}
+          </span>
+        </label>
       </div>
     </div>
   );

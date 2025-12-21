@@ -162,36 +162,41 @@ a {
 
 .card-check {
   position: absolute;
+  left: 8px;
+  top: 8px;
 }
 
-.card-check input {
-  appearance: none;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #fff;
+.card-check-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-check-box {
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  outline: none;
-  cursor: pointer;
+  border: 1px solid #999;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.5;
+  cursor: pointer;
+  font-size: 16px;
 }
 
-.card-check input:hover {
-  opacity: .7;
+.card-check-box:hover {
+  opacity: 0.7;
 }
 
-.card-check input:checked {
+.card-check-box.is-checked {
   background-color: #2563eb;
   opacity: 1;
+  border-color: #2563eb;
 }
 
-.card-check input:checked::before {
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900; /* solid */
-  content: "\f00c"; /* fa-check */
-  font-size: 14px;
+.card-check-icon {
   color: white;
 }
 
