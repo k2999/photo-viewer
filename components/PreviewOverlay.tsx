@@ -32,6 +32,7 @@ export function PreviewOverlay({
             <video
               src={`/api/file?path=${encodeURIComponent(entry.relativePath)}`}
               controls
+              preload="metadata"
               autoPlay
             />
           )}
