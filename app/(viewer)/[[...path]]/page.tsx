@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useCallback, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { paramsToDir, dirToUrl, parentDir, normalizeDir } from "@/lib/path";
+import { useCallback, useEffect } from "react";
+import { parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
 import { EntryCard } from "@/components/EntryCard";
 import { useCheckedSet } from "@/hooks/useCheckedSet";
@@ -15,18 +14,14 @@ import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
-import { useViewer } from "@/components/ViewerContext";
+import { useViewer, useViewerNav } from "@/components/ViewerContext";
 
 const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
 export default function PhotoViewerPage() {
-  const router = useRouter();
-  const params = useParams<{ path?: string[] }>();
-
-  const currentPath = useMemo(() => {
-    return paramsToDir(params?.path);
-  }, [params]);
+  const { currentDir } = useViewer();
+  const nav = useViewerNav();
 
   const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
@@ -37,7 +32,7 @@ export default function PhotoViewerPage() {
     isPreviewOpen,
     setIsPreviewOpen,
     reload,
-  } = useDirEntries(currentPath);
+  } = useDirEntries(currentDir);
 
   const {
     checked,
@@ -57,28 +52,29 @@ export default function PhotoViewerPage() {
 
   const selectedEntry = entries[selectedIndex] ?? null;
 
-  useCallback(() => {
+  useEffect(() => {
     resetChecked();
+    abortAllDirThumbs();
     resetDirThumbs();
-  }, [reload, resetChecked, resetDirThumbs]);
+    setIsPreviewOpen(false);
+    setSelectedIndex(0);
+  }, [currentDir, abortAllDirThumbs, resetChecked, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
 
   useSelectedEntrySync(selectedEntry);
-
-  const { bumpNavGen } = useViewer();
 
   const pushDir = useCallback(
     (dirPath: string) => {
       abortAllDirThumbs();
-      bumpNavGen();
-      router.push(dirToUrl(dirPath));
+      setIsPreviewOpen(false);
+      nav.pushDir(dirPath);
     },
-    [abortAllDirThumbs, bumpNavGen, router]
+    [abortAllDirThumbs, nav, setIsPreviewOpen]
   );
 
   const goParent = useCallback(() => {
-    if (normalizeDir(currentPath) === ".") return;
-    const prev = normalizeDir(currentPath);
-    const next = normalizeDir(parentDir(currentPath));
+    if (normalizeDir(currentDir) === ".") return;
+    const prev = normalizeDir(currentDir);
+    const next = normalizeDir(parentDir(currentDir));
     try {
       sessionStorage.setItem(
         PENDING_KEY,
@@ -92,7 +88,16 @@ export default function PhotoViewerPage() {
     } catch {
     }
     pushDir(next);
-  }, [currentPath, pushDir]);
+  }, [currentDir, pushDir]);
+
+  const goSiblingDir = useCallback(
+    (delta: -1 | 1) => {
+      abortAllDirThumbs();
+      setIsPreviewOpen(false);
+      nav.goSiblingDir(delta);
+    },
+    [abortAllDirThumbs, nav, setIsPreviewOpen]
+  );
 
   // 親へ戻った直後、entries が揃ったら「元いた子フォルダ」を選択する（1回限り）
   useEffect(() => {
@@ -115,7 +120,7 @@ export default function PhotoViewerPage() {
     }
 
     // このディレクトリに入ったときだけ適用
-    if (payload?.targetDir !== normalizeDir(currentPath)) return;
+    if (payload?.targetDir !== normalizeDir(currentDir)) return;
 
     if (
       payload?.kind === "entryByRelativePath" &&
@@ -132,25 +137,21 @@ export default function PhotoViewerPage() {
 
     // 1回限りで消費
     try { sessionStorage.removeItem(PENDING_KEY); } catch {}
-  }, [currentPath, entries, setSelectedIndex]);
+  }, [currentDir, entries, setSelectedIndex]);
 
   useKeyboardNav({
     entriesLength: entries.length,
     gridCols: GRID_COLS,
-
     selectedEntry: selectedEntry,
-
     isPreviewOpen,
     setIsPreviewOpen,
-
     setSelectedIndex,
-
     toggleCheck,
     selectAll,
     deselectAll,
-
     goParent,
     pushDir,
+    goSiblingDir,
   });
 
   useScrollFollowSelected({
@@ -168,7 +169,7 @@ export default function PhotoViewerPage() {
       />
 
       <div className="grid-container">
-        <div className="grid" key={currentPath}>
+        <div className="grid" key={currentDir}>
           {entries.map((e, idx) => {
             const isSelected = idx === selectedIndex;
             const isChecked = checked.has(e.relativePath);

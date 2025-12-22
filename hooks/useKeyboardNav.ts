@@ -24,6 +24,7 @@ export type UseKeyboardNavArgs = {
 
   goParent: () => void;
   pushDir: (dirPath: string) => void;
+  goSiblingDir: (delta: -1 | 1) => void;
 };
 
 export function useKeyboardNav({
@@ -38,6 +39,7 @@ export function useKeyboardNav({
   deselectAll,
   goParent,
   pushDir,
+  goSiblingDir,
 }: UseKeyboardNavArgs) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -61,6 +63,12 @@ export function useKeyboardNav({
           const next = i - gridCols;
           return next < 0 ? i : next;
         });
+      } else if (e.key === "H" || e.key === "J") {
+        e.preventDefault();
+        goSiblingDir(1);
+      } else if (e.key === "L" || e.key === "K") {
+        e.preventDefault();
+        goSiblingDir(-1);
       } else if (e.key === " ") {
         e.preventDefault();
         if (selectedEntry) {
@@ -68,23 +76,28 @@ export function useKeyboardNav({
         }
       } else if (e.metaKey && e.key === "a") {
         e.preventDefault();
-        if (!e.shiftKey) selectAll();
-        else deselectAll();
+        if (!e.shiftKey) {
+          selectAll();
+        } else {
+          deselectAll();
+        }
       } else if (e.key === "Escape") {
         setIsPreviewOpen(false);
-      } else if (e.key === "Enter" && e.shiftKey) {
-        e.preventDefault();
-        if (!isPreviewOpen) goParent();
-        else setIsPreviewOpen(false);
       } else if (e.key === "Enter") {
-        if (selectedEntry?.type === "dir") {
+        if (!e.shiftKey) {
+          if (selectedEntry?.type === "dir") {
+            e.preventDefault();
+            pushDir(selectedEntry.relativePath);
+          } else if (selectedEntry?.type === "image" || selectedEntry?.type === "video") {
+            setIsPreviewOpen((v) => !v);
+          }
+        } else {
           e.preventDefault();
-          pushDir(selectedEntry.relativePath);
-        } else if (
-          selectedEntry?.type === "image" ||
-          selectedEntry?.type === "video"
-        ) {
-          setIsPreviewOpen((v) => !v);
+          if (!isPreviewOpen) {
+            goParent();
+          } else {
+            setIsPreviewOpen(false);
+          }
         }
       }
     }
