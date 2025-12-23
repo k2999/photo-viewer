@@ -1,6 +1,8 @@
 "use client";
 
-import type { Entry } from "@/components/ViewerContext";
+import { entryKeyOf, useViewer, type Entry } from "@/components/ViewerContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
 
 export type PreviewOverlayProps = {
   isOpen: boolean;
@@ -17,9 +19,50 @@ export function PreviewOverlay({
   if (!entry) return null;
   if (entry.type === "dir") return null;
 
+  const { checked, toggleCheck } = useViewer();
+  const key = entryKeyOf(entry);
+  const isChecked = checked.has(key);
+
   return (
     <div className="preview-backdrop">
       <div className="preview-backdrop-click" onClick={onClose} />
+      <div className="preview-header">
+        <div className="card-check">
+          <label
+            className="card-check-label"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              className="card-check-input"
+              type="checkbox"
+              checked={isChecked}
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleCheck(key);
+              }}
+            />
+            <span
+              className={[
+                "card-check-box",
+                isChecked ? "is-checked" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-hidden="true"
+            >
+              {isChecked && (
+                <FontAwesomeIcon
+                  icon={faCheck}
+                  className="card-check-icon"
+                />
+              )}
+            </span>
+          </label>
+        </div>
+        <div className="preview-title" title={entry.name}>
+          {entry.name}
+        </div>
+      </div>
       <div className="preview-content-wrapper">
         <div className="preview-content">
           {entry.type === "image" && (
@@ -37,7 +80,6 @@ export function PreviewOverlay({
             />
           )}
         </div>
-        <div className="preview-label">{entry.name}</div>
       </div>
     </div>
   );

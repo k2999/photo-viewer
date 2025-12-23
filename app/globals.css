@@ -216,12 +216,41 @@ a {
   inset: 0;
 }
 
+.preview-header {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.preview-header .card-check {
+  position: static;
+  left: auto;
+  top: auto;
+}
+
+.preview-header .card-check-box {
+  opacity: 0.9;
+}
+
 .preview-content-wrapper {
   position: relative;
   max-width: 90vw;
   max-height: 90vh;
   z-index: 10;
 }
+
+.preview-title {
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70vw;
+}
+
 
 .preview-content img,
 .preview-content video {

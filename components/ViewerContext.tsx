@@ -1,12 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback, useRef } from "react";
 
 export type Entry = {
   name: string;
   relativePath: string;
   type: "dir" | "image" | "video" | "other";
 };
+
+export type EntryKey = string;
+
+export function entryKeyOf(entry: Entry): EntryKey {
+  return entry.type === "dir" ? `${entry.relativePath}/` : entry.relativePath;
+}
 
 export type ViewerNavigator = {
   pushDir: (dirPath: string) => void;
@@ -31,16 +37,25 @@ type ViewerContextValue = {
   bumpNavGen: () => void;
   isNavigating: boolean;
   endNavigating: () => void;
+  checked: Set<EntryKey>;
+  setChecked: React.Dispatch<React.SetStateAction<Set<EntryKey>>>;
+  toggleCheck: (key: EntryKey) => void;
+  registerListedKeys: (keys: EntryKey[]) => void;
+  selectAll: () => void;
+  deselectAll: () => void;
 };
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
 export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
-  const [currentDir, setCurrentDir] = useState<string>(".");
+  const [currentDir, setCurrentDirState] = useState<string>(".");
   const [navigator, setNavigator] = useState<ViewerNavigator | null>(null);
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [checked, setChecked] = useState<Set<EntryKey>>(() => new Set());
+  const listedKeysRef = useRef<EntryKey[]>([]);
+
 
   const bumpNavGen = useCallback(() => {
     setIsNavigating(true);
@@ -50,6 +65,43 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
 
   const endNavigating = useCallback(() => {
     setIsNavigating(false);
+  }, []);
+
+  const setCurrentDir = useCallback((dir: string) => {
+    setCurrentDirState(dir);
+    setChecked(new Set());
+    listedKeysRef.current = [];
+  }, []);
+
+  const toggleCheck = useCallback((key: EntryKey) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const registerListedKeys = useCallback((keys: EntryKey[]) => {
+    listedKeysRef.current = keys;
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const keys = listedKeysRef.current;
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const k of keys) next.add(k);
+      return next;
+    });
+  }, []);
+
+  const deselectAll = useCallback(() => {
+    const keys = listedKeysRef.current;
+    setChecked((prev) => {
+      const next = new Set(prev);
+      for (const k of keys) next.delete(k);
+      return next;
+    });
   }, []);
 
   const value = useMemo(
@@ -64,8 +116,28 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       bumpNavGen,
       isNavigating,
       endNavigating,
+      checked,
+      setChecked,
+      toggleCheck,
+      registerListedKeys,
+      selectAll,
+      deselectAll,
     }),
-    [selectedEntry, currentDir, navigator, navGen, bumpNavGen, isNavigating, endNavigating]
+    [
+      selectedEntry,
+      currentDir,
+      setCurrentDir,
+      navigator,
+      navGen,
+      bumpNavGen,
+      isNavigating,
+      endNavigating,
+      checked,
+      toggleCheck,
+      registerListedKeys,
+      selectAll,
+      deselectAll,
+    ]
   );
 
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;

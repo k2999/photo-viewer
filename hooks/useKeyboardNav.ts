@@ -7,6 +7,11 @@ export type SelectedEntryLike = {
   relativePath: string;
 } | null;
 
+function entryKeyOfSelected(e: SelectedEntryLike): string | null {
+  if (!e) return null;
+  return e.type === "dir" ? `${e.relativePath}/` : e.relativePath;
+}
+
 export type UseKeyboardNavArgs = {
   entriesLength: number;
   gridCols: number;
@@ -18,7 +23,7 @@ export type UseKeyboardNavArgs = {
 
   setSelectedIndex: React.Dispatch<React.SetStateAction<number>>;
 
-  toggleCheck: (path: string) => void;
+  toggleCheck: (key: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
 
@@ -71,9 +76,9 @@ export function useKeyboardNav({
         goSiblingDir(-1);
       } else if (e.key === " ") {
         e.preventDefault();
-        if (selectedEntry) {
-          toggleCheck(selectedEntry.relativePath);
-        }
+        const key = entryKeyOfSelected(selectedEntry);
+        if (!key) return;
+        toggleCheck(key);
       } else if (e.metaKey && e.key === "a") {
         e.preventDefault();
         if (!e.shiftKey) {
@@ -88,7 +93,10 @@ export function useKeyboardNav({
           if (selectedEntry?.type === "dir") {
             e.preventDefault();
             pushDir(selectedEntry.relativePath);
-          } else if (selectedEntry?.type === "image" || selectedEntry?.type === "video") {
+          } else if (
+            selectedEntry?.type === "image" ||
+            selectedEntry?.type === "video"
+          ) {
             setIsPreviewOpen((v) => !v);
           }
         } else {
@@ -112,6 +120,7 @@ export function useKeyboardNav({
     isPreviewOpen,
     goParent,
     pushDir,
+    goSiblingDir,
     selectAll,
     deselectAll,
     setIsPreviewOpen,

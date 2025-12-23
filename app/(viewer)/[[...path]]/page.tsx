@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
 import { EntryCard } from "@/components/EntryCard";
@@ -14,15 +14,14 @@ import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
-import { useViewer, useViewerNav } from "@/components/ViewerContext";
+import { entryKeyOf, useViewer, useViewerNav } from "@/components/ViewerContext";
 
 const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
 export default function PhotoViewerPage() {
-  const { currentDir } = useViewer();
+  const { currentDir, checked, setChecked, toggleCheck, registerListedKeys, selectAll, deselectAll } = useViewer();
   const nav = useViewerNav();
-
   const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
   const {
@@ -34,15 +33,13 @@ export default function PhotoViewerPage() {
     reload,
   } = useDirEntries(currentDir);
 
-  const {
-    checked,
-    setChecked,
-    toggleCheck,
-    selectAll,
-    deselectAll,
-    setRangeChecked,
-    resetChecked,
-  } = useCheckedSet(entries);
+  const listedKeys = useMemo(() => {
+    return entries.map((e) => entryKeyOf(e));
+  }, [entries]);
+
+  useEffect(() => {
+    registerListedKeys(listedKeys);
+  }, [listedKeys, registerListedKeys]);
 
   const { handleBulkDelete, handleBulkMove } = useBulkActions({
     checked,
@@ -53,12 +50,12 @@ export default function PhotoViewerPage() {
   const selectedEntry = entries[selectedIndex] ?? null;
 
   useEffect(() => {
-    resetChecked();
     abortAllDirThumbs();
     resetDirThumbs();
     setIsPreviewOpen(false);
     setSelectedIndex(0);
-  }, [currentDir, abortAllDirThumbs, resetChecked, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
+  }, [currentDir, abortAllDirThumbs, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
+
 
   useSelectedEntrySync(selectedEntry);
 
@@ -139,6 +136,23 @@ export default function PhotoViewerPage() {
     try { sessionStorage.removeItem(PENDING_KEY); } catch {}
   }, [currentDir, entries, setSelectedIndex]);
 
+  const setRangeChecked = useCallback(
+    (fromIdx: number, toIdx: number, nextState: boolean) => {
+      const a = Math.min(fromIdx, toIdx);
+      const b = Math.max(fromIdx, toIdx);
+      const keys = entries.slice(a, b + 1).map((e) => entryKeyOf(e));
+      setChecked((prev) => {
+        const next = new Set(prev);
+        for (const k of keys) {
+          if (nextState) next.add(k);
+          else next.delete(k);
+        }
+        return next;
+      });
+    },
+    [entries, setChecked]
+  );
+
   useKeyboardNav({
     entriesLength: entries.length,
     gridCols: GRID_COLS,
@@ -172,7 +186,8 @@ export default function PhotoViewerPage() {
         <div className="grid" key={currentDir}>
           {entries.map((e, idx) => {
             const isSelected = idx === selectedIndex;
-            const isChecked = checked.has(e.relativePath);
+            const key = entryKeyOf(e);
+            const isChecked = checked.has(key);
             const cardClasses = [
               "card",
               isSelected ? "card-selected" : "",
@@ -221,7 +236,7 @@ export default function PhotoViewerPage() {
                   if (isShift) {
                     setRangeChecked(selectedIndex, idx, nextState);
                   } else {
-                    toggleCheck(e.relativePath);
+                    toggleCheck(key);
                   }
                 }}
                 thumb={thumb}
