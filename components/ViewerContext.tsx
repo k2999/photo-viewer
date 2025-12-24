@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback, useRef, useEffect } from "react";
 
 export type Entry = {
   name: string;
@@ -56,18 +56,18 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [checked, setChecked] = useState<Set<EntryKey>>(() => new Set());
-  const [cardWidth, setCardWidthState] = useState<CardWidthPx>(() => {
+  const [cardWidth, setCardWidthState] = useState<CardWidthPx>(220);
+  const listedKeysRef = useRef<EntryKey[]>([]);
+
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem("photoViewer:cardWidth");
       const n = raw ? Number(raw) : NaN;
-      if (Number.isFinite(n)) return n;
+      if (Number.isFinite(n)) setCardWidthState(n);
     } catch {
       // ignore
     }
-    return 220;
-  });
-  const listedKeysRef = useRef<EntryKey[]>([]);
-
+  }, []);
 
   const bumpNavGen = useCallback(() => {
     setIsNavigating(true);

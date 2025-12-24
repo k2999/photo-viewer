@@ -15,6 +15,7 @@ import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
 import { entryKeyOf, useViewer, useViewerNav } from "@/components/ViewerContext";
+import { VideoBadge } from "@/components/VideoBadge";
 
 const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
@@ -229,11 +230,19 @@ export default function PhotoViewerPage() {
               .join(" ");
 
             const thumb =
-              e.type === "image" || e.type === "video" ? (
+              e.type === "image" ? (
                 <ThumbImage
                   src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
                   alt={e.name}
                 />
+              ) : e.type === "video" ? (
+                <>
+                  <ThumbImage
+                    src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
+                    alt={e.name}
+                  />
+                  <VideoBadge entry={e} />
+                </>
               ) : e.type === "dir" ? (
                 <DirThumbGrid
                   dirPath={e.relativePath}
