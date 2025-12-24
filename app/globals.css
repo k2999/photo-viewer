@@ -214,6 +214,37 @@ a {
 .preview-backdrop-click {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+
+.preview-nav-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5vw;
+  z-index: 5;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.preview-nav-zone:disabled {
+  color: #666;
+  cursor: default;
+}
+
+.preview-nav-zone-left {
+  left: 0;
+}
+
+.preview-nav-zone-right {
+  right: 0;
+}
+
+.preview-nav-zone:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .preview-header {

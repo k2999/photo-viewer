@@ -2,18 +2,26 @@
 
 import { entryKeyOf, useViewer, type Entry } from "@/components/ViewerContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 
 export type PreviewOverlayProps = {
   isOpen: boolean;
   entry: Entry | null;
   onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  hasPrev: boolean;
+  hasNext: boolean;
 };
 
 export function PreviewOverlay({
   isOpen,
   entry,
   onClose,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
 }: PreviewOverlayProps) {
   if (!isOpen) return null;
   if (!entry) return null;
@@ -63,6 +71,36 @@ export function PreviewOverlay({
           {entry.name}
         </div>
       </div>
+      <button
+        type="button"
+        className="preview-nav-zone preview-nav-zone-left"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (hasPrev) onPrev();
+        }}
+        disabled={!hasPrev}
+        aria-label="Previous"
+        title="Previous"
+      >
+        <span className="preview-nav-icon">
+          <FontAwesomeIcon icon={faChevronLeft} />
+        </span>
+      </button>
+      <button
+        type="button"
+        className="preview-nav-zone preview-nav-zone-right"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (hasNext) onNext();
+        }}
+        disabled={!hasNext}
+        aria-label="Next"
+        title="Next"
+      >
+        <span className="preview-nav-icon">
+          <FontAwesomeIcon icon={faChevronRight} />
+        </span>
+      </button>
       <div className="preview-content-wrapper">
         <div className="preview-content">
           {entry.type === "image" && (

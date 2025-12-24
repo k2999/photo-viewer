@@ -250,6 +250,14 @@ export default function PhotoViewerPage() {
         isOpen={isPreviewOpen}
         entry={selectedEntry}
         onClose={() => setIsPreviewOpen(false)}
+        hasPrev={selectedIndex > 0}
+        hasNext={selectedIndex < entries.length - 1}
+        onPrev={() => {
+          setSelectedIndex((i) => Math.max(0, i - 1));
+        }}
+        onNext={() => {
+          setSelectedIndex((i) => Math.min(entries.length - 1, i + 1));
+        }}
       />
     </>
   );
