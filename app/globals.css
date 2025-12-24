@@ -110,8 +110,9 @@ a {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, var(--card-w, 220px));
+  gap: var(--grid-gap, 8px);
+  justify-content: start;
 }
 
 .card {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
 import { EntryCard } from "@/components/EntryCard";
@@ -20,7 +20,7 @@ const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
 export default function PhotoViewerPage() {
-  const { currentDir, checked, setChecked, toggleCheck, registerListedKeys, selectAll, deselectAll } = useViewer();
+  const { currentDir, checked, setChecked, toggleCheck, registerListedKeys, selectAll, deselectAll, cardWidth, setCardWidth } = useViewer();
   const nav = useViewerNav();
   const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
@@ -49,6 +49,9 @@ export default function PhotoViewerPage() {
 
   const selectedEntry = entries[selectedIndex] ?? null;
 
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const [gridCols, setGridCols] = useState<number>(1);
+
   useEffect(() => {
     abortAllDirThumbs();
     resetDirThumbs();
@@ -58,6 +61,33 @@ export default function PhotoViewerPage() {
 
 
   useSelectedEntrySync(selectedEntry);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const kids = Array.from(el.children) as HTMLElement[];
+      if (kids.length === 0) {
+        setGridCols(1);
+        return;
+      }
+      const top = kids[0].offsetTop;
+      let cols = 0;
+      for (const k of kids) {
+        if (k.offsetTop !== top) break;
+        cols++;
+      }
+      setGridCols(Math.max(1, cols));
+    };
+
+    measure();
+
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+
+    return () => ro.disconnect();
+  }, [currentDir, entries.length, cardWidth]);
 
   const pushDir = useCallback(
     (dirPath: string) => {
@@ -155,7 +185,7 @@ export default function PhotoViewerPage() {
 
   useKeyboardNav({
     entriesLength: entries.length,
-    gridCols: GRID_COLS,
+    gridCols,
     selectedEntry: selectedEntry,
     isPreviewOpen,
     setIsPreviewOpen,
@@ -180,10 +210,12 @@ export default function PhotoViewerPage() {
         checkedCount={checked.size}
         onBulkDelete={handleBulkDelete}
         onBulkMove={handleBulkMove}
+        cardWidth={cardWidth}
+        onCardWidthChange={setCardWidth}
       />
 
       <div className="grid-container">
-        <div className="grid" key={currentDir}>
+        <div className="grid" key={currentDir} ref={gridRef}>
           {entries.map((e, idx) => {
             const isSelected = idx === selectedIndex;
             const key = entryKeyOf(e);

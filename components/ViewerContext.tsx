@@ -7,8 +7,8 @@ export type Entry = {
   relativePath: string;
   type: "dir" | "image" | "video" | "other";
 };
-
 export type EntryKey = string;
+export type CardWidthPx = number;
 
 export function entryKeyOf(entry: Entry): EntryKey {
   return entry.type === "dir" ? `${entry.relativePath}/` : entry.relativePath;
@@ -43,6 +43,8 @@ type ViewerContextValue = {
   registerListedKeys: (keys: EntryKey[]) => void;
   selectAll: () => void;
   deselectAll: () => void;
+  cardWidth: CardWidthPx;
+  setCardWidth: (px: CardWidthPx) => void;
 };
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
@@ -54,6 +56,16 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [checked, setChecked] = useState<Set<EntryKey>>(() => new Set());
+  const [cardWidth, setCardWidthState] = useState<CardWidthPx>(() => {
+    try {
+      const raw = window.localStorage.getItem("photoViewer:cardWidth");
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n)) return n;
+    } catch {
+      // ignore
+    }
+    return 220;
+  });
   const listedKeysRef = useRef<EntryKey[]>([]);
 
 
@@ -95,6 +107,15 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setCardWidth = useCallback((px: CardWidthPx) => {
+    setCardWidthState(px);
+    try {
+      window.localStorage.setItem("photoViewer:cardWidth", String(px));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const deselectAll = useCallback(() => {
     const keys = listedKeysRef.current;
     setChecked((prev) => {
@@ -122,6 +143,8 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       registerListedKeys,
       selectAll,
       deselectAll,
+      cardWidth,
+      setCardWidth,
     }),
     [
       selectedEntry,
@@ -137,6 +160,8 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       registerListedKeys,
       selectAll,
       deselectAll,
+      cardWidth,
+      setCardWidth,
     ]
   );
 

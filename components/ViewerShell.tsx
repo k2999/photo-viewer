@@ -29,6 +29,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
     currentDir,
     setCurrentDir,
     setNavigator,
+    cardWidth,
   } = useViewer();
 
   const dirFromUrl = useMemo(() => pathnameToDir(pathname), [pathname]);
@@ -119,7 +120,17 @@ export function ViewerShell({ children }: { children: ReactNode }) {
         <ExifPanel entry={selectedEntry} />
       </aside>
 
-      <main className="main">{children}</main>
+      <main
+        className="main"
+        style={
+          {
+            ["--card-w" as any]: `${cardWidth}px`,
+            ["--grid-gap" as any]: `${Math.max(8, Math.round(cardWidth * 0.04))}px`,
+          } as React.CSSProperties
+        }
+      >
+        {children}
+      </main>
     </div>
   );
 }
