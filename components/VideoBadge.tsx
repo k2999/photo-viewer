@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faVideo } from "@fortawesome/free-solid-svg-icons";
 import type { Entry } from "@/components/ViewerContext";
+import { useExif } from "@/hooks/useExif";
 
 function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -51,7 +52,6 @@ export function VideoBadge({
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [label, setLabel] = useState<string>(""); // "0:12" など
-  const fetchedRef = useRef(false);
 
   useEffect(() => {
     if (!el) return;
@@ -74,28 +74,17 @@ export function VideoBadge({
     return () => obs.disconnect();
   }, [el, enabled, rootMargin]);
 
+  const { exif } = useExif(
+    entry.type === "video" ? entry.relativePath : null,
+    enabled && entry.type === "video"
+  );
+
   useEffect(() => {
-    if (!enabled) return;
-    if (entry.type !== "video") return;
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    const ctrl = new AbortController();
-
-    const rel = entry.relativePath;
-    fetch(`/api/exif?path=${encodeURIComponent(rel)}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((data) => {
-        const raw = data?.exif?.Duration;
-        const sec = parseDurationToSeconds(raw);
-        if (sec != null) setLabel(formatDuration(sec));
-      })
-      .catch(() => {
-        /* 失敗時はアイコンのみ表示 */
-      });
-
-    return () => ctrl.abort();
-  }, [enabled, entry.type, entry.relativePath]);
+    if (!exif) return;
+    const raw = exif?.Duration;
+    const sec = parseDurationToSeconds(raw);
+    if (sec != null) setLabel(formatDuration(sec));
+  }, [exif]);
 
   // 常にアイコンは出し、Duration は取れたら表示
   return (

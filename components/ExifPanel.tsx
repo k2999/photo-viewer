@@ -1,25 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { Entry } from "@/components/ViewerContext";
+import { useExif } from "@/hooks/useExif";
 
 export function ExifPanel({ entry }: { entry: Entry | null }) {
-  const [exif, setExif] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!entry || entry.type === "dir" || entry.type === "other") {
-      setExif(null);
-      return;
-    }
-
-    setLoading(true);
-    fetch(`/api/exif?path=${encodeURIComponent(entry.relativePath)}`)
-      .then((r) => r.json())
-      .then((data) => setExif(data.exif ?? null))
-      .catch(() => setExif(null))
-      .finally(() => setLoading(false));
-  }, [entry]);
+  const enabled = !!entry && entry.type !== "dir" && entry.type !== "other";
+  const { exif, loading } = useExif(entry?.relativePath ?? null, enabled);
 
   return (
     <div className="exif-panel">

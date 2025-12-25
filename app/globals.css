@@ -201,18 +201,26 @@ a {
   color: white;
 }
 
-.card-video-badge {
+.card-same-datetime:not(.card-selected) {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+}
+
+.card-badges {
   position: absolute;
   right: 8px;
   top: 8px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.card-video-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 6px;
   border-radius: 4px;
-  background: rgba(255,255,255,0.5);
   background-color: #2563eb;
-  color: #000;
   color: #fff;
   font-size: 11px;
   line-height: 1;
@@ -226,6 +234,28 @@ a {
 
 .card-video-badge .video-duration {
   font-variant-numeric: tabular-nums;
+}
+
+.card-same-time-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px;
+  border-radius: 4px;
+  background-color: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.card-same-time-badge .same-time-count{
+  font-variant-numeric: tabular-nums;
+}
+
+.card-same-time-badge .same-time-icon {
+  font-size: 14px;
 }
 
 /* Preview overlay */

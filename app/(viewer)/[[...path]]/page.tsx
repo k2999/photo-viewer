@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
 import { EntryCard } from "@/components/EntryCard";
-import { useCheckedSet } from "@/hooks/useCheckedSet";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDirThumbs } from "@/hooks/useDirThumbs";
 import { useDirEntries } from "@/hooks/useDirEntries";
@@ -16,8 +15,12 @@ import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
 import { entryKeyOf, useViewer, useViewerNav } from "@/components/ViewerContext";
 import { VideoBadge } from "@/components/VideoBadge";
+import { ExifPrefetch } from "@/components/ExifPrefetch";
+import { abortAllExifRequests } from "@/hooks/useExif";
+import { useExif } from "@/hooks/useExif";
+import { DateKeyPrefetch } from "@/components/DateKeyPrefetch";
+import { SameTimeBadge } from "@/components/SameTimeBadge";
 
-const GRID_COLS = 6;
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
 export default function PhotoViewerPage() {
@@ -50,14 +53,77 @@ export default function PhotoViewerPage() {
 
   const selectedEntry = entries[selectedIndex] ?? null;
 
+  // ---- Same datetime highlight ----
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [dateKeyMap, setDateKeyMap] = useState<Record<string, string | null>>({});
+
+  // 同一フォルダ内（entriesの範囲）で dateKey の出現数を集計
+  const dateKeyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      if (e.type !== "image" && e.type !== "video") continue;
+      const k = entryKeyOf(e);
+      const dk = dateKeyMap[k];
+      if (!dk) continue;
+      counts[dk] = (counts[dk] ?? 0) + 1;
+    }
+    return counts;
+  }, [entries, dateKeyMap]);
+
+  // page.tsx 内でも DateKey の抽出ロジックを合わせる（DateKeyPrefetch と同じ）
+  const normalizeExifDateTime = (v: unknown): string | null => {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+    const m = s.match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return null;
+    const [, Y, M, D, h, mi, sec] = m;
+    return `${Y}-${M}-${D}T${h}:${mi}:${sec}`;
+  };
+
+  const pickDateKey = (exif: any): string | null => {
+    const candidates = [
+      exif?.DateTimeOriginal,
+      exif?.CreateDate,
+      exif?.MediaCreateDate,
+      exif?.TrackCreateDate,
+      exif?.ModifyDate,
+      exif?.FileModifyDate,
+    ];
+    for (const c of candidates) {
+      const k = normalizeExifDateTime(c);
+      if (k) return k;
+    }
+    return null;
+  };
+
+  // 選択中エントリの EXIF を取得して基準の dateKey を作る
+  const selectedEnabled =
+    !!selectedEntry && selectedEntry.type !== "dir" && selectedEntry.type !== "other";
+  const { exif: selectedExif } = useExif(
+    selectedEnabled ? selectedEntry!.relativePath : null,
+    selectedEnabled
+  );
+
+  useEffect(() => {
+    if (!selectedEnabled) {
+      setSelectedDateKey(null);
+      return;
+    }
+    setSelectedDateKey(selectedExif ? pickDateKey(selectedExif) : null);
+  }, [selectedEnabled, selectedExif]);
+
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [gridCols, setGridCols] = useState<number>(1);
 
   useEffect(() => {
+    abortAllExifRequests();
     abortAllDirThumbs();
     resetDirThumbs();
     setIsPreviewOpen(false);
     setSelectedIndex(0);
+    setSelectedDateKey(null);
+    setDateKeyMap({});
   }, [currentDir, abortAllDirThumbs, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
 
 
@@ -221,27 +287,63 @@ export default function PhotoViewerPage() {
             const isSelected = idx === selectedIndex;
             const key = entryKeyOf(e);
             const isChecked = checked.has(key);
+            const same = !!selectedDateKey && dateKeyMap[key] != null && dateKeyMap[key] === selectedDateKey;
+
+            const dk = dateKeyMap[key];
+            const dupCount = dk ? (dateKeyCounts[dk] ?? 0) : 0;
+            const showSameTimeBadge =
+              (e.type === "image" || e.type === "video") && dupCount >= 2;
+
             const cardClasses = [
               "card",
               isSelected ? "card-selected" : "",
               isChecked ? "card-checked" : "",
+              same ? "card-same-datetime" : "",
             ]
               .filter(Boolean)
               .join(" ");
 
             const thumb =
               e.type === "image" ? (
-                <ThumbImage
-                  src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
-                  alt={e.name}
-                />
+                <>
+                  <ThumbImage
+                    src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
+                    alt={e.name}
+                  />
+                  <ExifPrefetch path={e.relativePath} />
+                  <DateKeyPrefetch
+                    path={e.relativePath}
+                    onResolved={(dk) => {
+                      setDateKeyMap((prev) => {
+                        if (prev[key] === dk) return prev;
+                        return { ...prev, [key]: dk };
+                      });
+                    }}
+                  />
+                  <div className="card-badges">
+                    {showSameTimeBadge && <SameTimeBadge count={dupCount} />}
+                  </div>
+                </>
               ) : e.type === "video" ? (
                 <>
                   <ThumbImage
                     src={`/api/thumb?path=${encodeURIComponent(e.relativePath)}`}
                     alt={e.name}
                   />
-                  <VideoBadge entry={e} />
+                  <ExifPrefetch path={e.relativePath} />
+                  <DateKeyPrefetch
+                    path={e.relativePath}
+                    onResolved={(dk) => {
+                      setDateKeyMap((prev) => {
+                        if (prev[key] === dk) return prev;
+                        return { ...prev, [key]: dk };
+                      });
+                    }}
+                  />
+                  <div className="card-badges">
+                    {showSameTimeBadge && <SameTimeBadge count={dupCount} />}
+                    <VideoBadge entry={e} />
+                  </div>
                 </>
               ) : e.type === "dir" ? (
                 <DirThumbGrid
