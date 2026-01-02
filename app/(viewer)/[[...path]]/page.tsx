@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parentDir, normalizeDir } from "@/lib/path";
 import { DirThumbGrid } from "@/components/DirThumbGrid";
 import { EntryCard } from "@/components/EntryCard";
@@ -23,8 +23,107 @@ import { SameTimeBadge } from "@/components/SameTimeBadge";
 
 const PENDING_KEY = "photoViewer:pendingSelectOnEnter";
 
+type ConflictDecision = { strategy: "overwrite" | "skip" | "rename"; applyToAll: boolean };
+
+function ConflictModal({
+  open,
+  item,
+  dest,
+  existingName,
+  onResolve,
+}: {
+  open: boolean;
+  item: string;
+  dest: string;
+  existingName: string;
+  onResolve: (d: ConflictDecision) => void;
+}) {
+  const [applyToAll, setApplyToAll] = useState(false);
+
+  useEffect(() => {
+    if (!open) setApplyToAll(false);
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        style={{
+          width: "min(520px, 100%)",
+          background: "#fff",
+          borderRadius: 10,
+          padding: 14,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+          fontSize: 13,
+        }}
+      >
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>同名が既に存在します</div>
+
+        <div style={{ fontSize: 12, color: "#444", marginBottom: 10, lineHeight: 1.4 }}>
+          <div>
+            移動元: <code>{item}</code>
+          </div>
+          <div>
+            移動先: <code>{dest}</code>
+          </div>
+          <div>
+            競合: <code>{existingName}</code>
+          </div>
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <input
+            type="checkbox"
+            checked={applyToAll}
+            onChange={(e) => setApplyToAll(e.target.checked)}
+          />
+          以後同じ動作にする
+        </label>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="toolbar-button" onClick={() => onResolve({ strategy: "skip", applyToAll })}>
+            スキップ
+          </button>
+          <button className="toolbar-button" onClick={() => onResolve({ strategy: "rename", applyToAll })}>
+            リネーム（~1）
+          </button>
+          <button className="toolbar-button" onClick={() => onResolve({ strategy: "overwrite", applyToAll })}>
+            上書き
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PhotoViewerPage() {
-  const { currentDir, checked, setChecked, toggleCheck, registerListedKeys, selectAll, deselectAll, cardWidth, setCardWidth } = useViewer();
+  const {
+    currentDir,
+    checked,
+    setChecked,
+    toggleCheck,
+    registerListedKeys,
+    selectAll,
+    deselectAll,
+    cardWidth,
+    setCardWidth,
+    focusTarget,
+    markedDir,
+    setMoveToDir,
+  } = useViewer();
+
   const nav = useViewerNav();
   const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
@@ -35,6 +134,7 @@ export default function PhotoViewerPage() {
     isPreviewOpen,
     setIsPreviewOpen,
     reload,
+    removeEntriesByRelativePath,
   } = useDirEntries(currentDir);
 
   const listedKeys = useMemo(() => {
@@ -45,11 +145,61 @@ export default function PhotoViewerPage() {
     registerListedKeys(listedKeys);
   }, [listedKeys, registerListedKeys]);
 
-  const { handleBulkDelete, handleBulkMove } = useBulkActions({
+  const [conflictState, setConflictState] = useState<{
+    open: boolean;
+    item: string;
+    dest: string;
+    existingName: string;
+    resolve: ((d: ConflictDecision) => void) | null;
+  }>({
+    open: false,
+    item: "",
+    dest: "",
+    existingName: "",
+    resolve: null,
+  });
+
+  const askConflict = useCallback((args: { item: string; dest: string; existingName: string }) => {
+    return new Promise<ConflictDecision>((resolve) => {
+      setConflictState({
+        open: true,
+        item: args.item,
+        dest: args.dest,
+        existingName: args.existingName,
+        resolve,
+      });
+    });
+  }, []);
+
+  const { handleBulkDelete, handleMoveToMarked, handleMoveItemsToDest } = useBulkActions({
     checked,
     setChecked,
     reload,
+    markedDir,
+    askConflict,
   });
+
+  // 追加：最新版の handler を保持
+  const moveToDestRef = useRef(handleMoveItemsToDest);
+
+  // 追加：handler が変わっても ref を差し替えるだけ（再レンダーの原因にしない）
+  useEffect(() => {
+    moveToDestRef.current = handleMoveItemsToDest;
+  }, [handleMoveItemsToDest]);
+
+  // 差し替え：setMoveToDir は「1回だけ」設定
+  useEffect(() => {
+    setMoveToDir((destDir: string, items: string[]) => {
+      void (async () => {
+        const moved = await handleMoveItemsToDest(destDir, items);
+        if (moved && moved.length > 0) {
+          removeEntriesByRelativePath(moved);
+        }
+        // 原則reloadしない。必要なら moved.length === 0 のときだけ reload() とかにできる
+      })();
+    });
+    return () => setMoveToDir(null);
+  }, [handleMoveItemsToDest, setMoveToDir, removeEntriesByRelativePath]);
 
   const selectedEntry = entries[selectedIndex] ?? null;
 
@@ -57,7 +207,6 @@ export default function PhotoViewerPage() {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [dateKeyMap, setDateKeyMap] = useState<Record<string, string | null>>({});
 
-  // 同一フォルダ内（entriesの範囲）で dateKey の出現数を集計
   const dateKeyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const e of entries) {
@@ -70,7 +219,6 @@ export default function PhotoViewerPage() {
     return counts;
   }, [entries, dateKeyMap]);
 
-  // page.tsx 内でも DateKey の抽出ロジックを合わせる（DateKeyPrefetch と同じ）
   const normalizeExifDateTime = (v: unknown): string | null => {
     if (v == null) return null;
     const s = String(v).trim();
@@ -97,7 +245,6 @@ export default function PhotoViewerPage() {
     return null;
   };
 
-  // 選択中エントリの EXIF を取得して基準の dateKey を作る
   const selectedEnabled =
     !!selectedEntry && selectedEntry.type !== "dir" && selectedEntry.type !== "other";
   const { exif: selectedExif } = useExif(
@@ -125,7 +272,6 @@ export default function PhotoViewerPage() {
     setSelectedDateKey(null);
     setDateKeyMap({});
   }, [currentDir, abortAllDirThumbs, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
-
 
   useSelectedEntrySync(selectedEntry);
 
@@ -180,6 +326,7 @@ export default function PhotoViewerPage() {
         })
       );
     } catch {
+      // ignore
     }
     pushDir(next);
   }, [currentDir, pushDir]);
@@ -193,7 +340,6 @@ export default function PhotoViewerPage() {
     [abortAllDirThumbs, nav, setIsPreviewOpen]
   );
 
-  // 親へ戻った直後、entries が揃ったら「元いた子フォルダ」を選択する（1回限り）
   useEffect(() => {
     if (!entries || entries.length === 0) return;
 
@@ -209,28 +355,25 @@ export default function PhotoViewerPage() {
     try {
       payload = JSON.parse(raw);
     } catch {
-      try { sessionStorage.removeItem(PENDING_KEY); } catch {}
+      try {
+        sessionStorage.removeItem(PENDING_KEY);
+      } catch {}
       return;
     }
 
-    // このディレクトリに入ったときだけ適用
     if (payload?.targetDir !== normalizeDir(currentDir)) return;
 
-    if (
-      payload?.kind === "entryByRelativePath" &&
-      typeof payload?.relativePath === "string"
-    ) {
+    if (payload?.kind === "entryByRelativePath" && typeof payload?.relativePath === "string") {
       const want = normalizeDir(payload.relativePath);
-      const idx = entries.findIndex(
-        (e) => e.type === "dir" && normalizeDir(e.relativePath) === want
-      );
+      const idx = entries.findIndex((e) => e.type === "dir" && normalizeDir(e.relativePath) === want);
       if (idx >= 0) {
         setSelectedIndex(idx);
       }
     }
 
-    // 1回限りで消費
-    try { sessionStorage.removeItem(PENDING_KEY); } catch {}
+    try {
+      sessionStorage.removeItem(PENDING_KEY);
+    } catch {}
   }, [currentDir, entries, setSelectedIndex]);
 
   const setRangeChecked = useCallback(
@@ -250,10 +393,110 @@ export default function PhotoViewerPage() {
     [entries, setChecked]
   );
 
+  // ===== Drag payload build =====
+  const buildDragItems = useCallback(
+    (key: string) => {
+      if (checked.size > 0 && checked.has(key)) return Array.from(checked);
+      return [key];
+    },
+    [checked]
+  );
+
+  const onCardDragStart = useCallback(
+    (ev: React.DragEvent<HTMLDivElement>, key: string) => {
+      const items = buildDragItems(key);
+      const payload = JSON.stringify({ kind: "photoViewer:moveItems", items });
+      ev.dataTransfer.setData("application/json", payload);
+      ev.dataTransfer.effectAllowed = "move";
+
+      // ===== custom drag image (100x100, stack + count badge) =====
+      const count = items.length;
+      const ghost = document.createElement("div");
+      ghost.style.width = "100px";
+      ghost.style.height = "100px";
+      ghost.style.position = "fixed";
+      ghost.style.left = "-1000px";
+      ghost.style.top = "-1000px";
+      ghost.style.zIndex = "999999";
+      ghost.style.pointerEvents = "none";
+      ghost.style.borderRadius = "10px";
+      ghost.style.boxSizing = "border-box";
+
+      for (let i = Math.min(count, 10); i >= 1; i--) {
+        const d = 12 / (count - 1) * (i - 1);
+        const o = 1 - 0.1 * (i - 1);
+
+        const layer = document.createElement("div");
+        layer.style.position = "absolute";
+        layer.style.inset = "0";
+        layer.style.transform = `translate(${d}px, ${d}px)`;
+        layer.style.borderRadius = "10px";
+        layer.style.background = "#fff";
+        layer.style.border = "1px solid #ccc";
+        layer.style.opacity = String(o);
+        layer.style.overflow = "hidden";
+
+        const entryKey = items[i - 1];
+        const selector = `[data-entry-key="${CSS.escape(entryKey)}"] .card-thumb img`;
+        const srcImg = document.querySelector(selector) as HTMLImageElement | null;
+
+        if (srcImg && srcImg.src) {
+          const thumb = document.createElement("img");
+          thumb.src = srcImg.src;
+          thumb.alt = "";
+          thumb.draggable = false;
+          thumb.style.width = "100%";
+          thumb.style.height = "100%";
+          thumb.style.objectFit = "cover";
+          thumb.style.display = "block";
+          layer.appendChild(thumb);
+        }
+
+        ghost.appendChild(layer);
+      }
+
+      // count badge
+      if (count >= 2) {
+        const badge = document.createElement("div");
+        badge.textContent = `${count}`;
+        badge.style.position = "absolute";
+        badge.style.right = "8px";
+        badge.style.bottom = "8px";
+        badge.style.padding = "4px 8px";
+        badge.style.borderRadius = "999px";
+        badge.style.background = "rgba(0,0,0,0.78)";
+        badge.style.color = "#fff";
+        badge.style.fontSize = "12px";
+        badge.style.fontWeight = "700";
+        badge.style.lineHeight = "1";
+        ghost.appendChild(badge);
+      }
+
+      document.body.appendChild(ghost);
+
+      // 2) set drag image; offset (x=4,y=4) => ghost is ~4px up-left relative to cursor feel
+      try {
+        ev.dataTransfer.setDragImage(ghost, 4, 4);
+      } catch {
+        // ignore (very old browsers)
+      }
+
+      // 3) cleanup on dragend (and a timeout fallback)
+      const cleanup = () => {
+        ghost.remove();
+        window.removeEventListener("dragend", cleanup, true);
+      };
+      window.addEventListener("dragend", cleanup, true);
+      window.setTimeout(cleanup, 0);
+    },
+    [buildDragItems]
+  );
+
   useKeyboardNav({
     entriesLength: entries.length,
     gridCols,
     selectedEntry: selectedEntry,
+    enabled: focusTarget === "grid",
     isPreviewOpen,
     setIsPreviewOpen,
     setSelectedIndex,
@@ -263,7 +506,7 @@ export default function PhotoViewerPage() {
     goParent,
     pushDir,
     goSiblingDir,
-  });
+  } as any);
 
   useScrollFollowSelected({
     selectedIndex,
@@ -276,7 +519,12 @@ export default function PhotoViewerPage() {
       <ViewerToolbar
         checkedCount={checked.size}
         onBulkDelete={handleBulkDelete}
-        onBulkMove={handleBulkMove}
+        onMoveToMarked={async () => {
+          if (!markedDir) return;
+          const moved = await handleMoveItemsToDest(markedDir, Array.from(checked));
+          if (moved && moved.length > 0) removeEntriesByRelativePath(moved);
+        }}
+        markedDir={markedDir}
         cardWidth={cardWidth}
         onCardWidthChange={setCardWidth}
       />
@@ -291,8 +539,7 @@ export default function PhotoViewerPage() {
 
             const dk = dateKeyMap[key];
             const dupCount = dk ? (dateKeyCounts[dk] ?? 0) : 0;
-            const showSameTimeBadge =
-              (e.type === "image" || e.type === "video") && dupCount >= 2;
+            const showSameTimeBadge = (e.type === "image" || e.type === "video") && dupCount >= 2;
 
             const cardClasses = [
               "card",
@@ -359,10 +606,13 @@ export default function PhotoViewerPage() {
               <EntryCard
                 key={e.relativePath}
                 idx={idx}
+                entryKey={key}
                 className={cardClasses}
                 title={e.name}
                 name={e.name}
                 isChecked={isChecked}
+                draggable={true}
+                onDragStart={(ev) => onCardDragStart(ev, key)}
                 onClick={() => setSelectedIndex(idx)}
                 onDoubleClick={() => {
                   if (e.type === "dir") {
@@ -395,11 +645,19 @@ export default function PhotoViewerPage() {
         onClose={() => setIsPreviewOpen(false)}
         hasPrev={selectedIndex > 0}
         hasNext={selectedIndex < entries.length - 1}
-        onPrev={() => {
-          setSelectedIndex((i) => Math.max(0, i - 1));
-        }}
-        onNext={() => {
-          setSelectedIndex((i) => Math.min(entries.length - 1, i + 1));
+        onPrev={() => setSelectedIndex((i) => Math.max(0, i - 1))}
+        onNext={() => setSelectedIndex((i) => Math.min(entries.length - 1, i + 1))}
+      />
+
+      <ConflictModal
+        open={conflictState.open}
+        item={conflictState.item}
+        dest={conflictState.dest}
+        existingName={conflictState.existingName}
+        onResolve={(d) => {
+          const r = conflictState.resolve;
+          setConflictState((s) => ({ ...s, open: false, resolve: null }));
+          r?.(d);
         }}
       />
     </>

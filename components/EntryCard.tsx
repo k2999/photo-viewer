@@ -12,6 +12,8 @@ export type EntryCardProps = {
   title: string; // card-name の title
   name: string; // card-name の表示
 
+  entryKey: string;
+
   // checkbox
   isChecked: boolean;
   onCheckboxChange: (ev: React.ChangeEvent<HTMLInputElement>) => void;
@@ -22,11 +24,15 @@ export type EntryCardProps = {
 
   // サムネ部分（DirThumbGrid や <img> をそのまま渡す）
   thumb: ReactNode;
+
+  draggable?: boolean;
+  onDragStart?: (ev: React.DragEvent<HTMLDivElement>) => void;
 };
 
 export function EntryCard({
   idx,
   className,
+  entryKey,
   title,
   name,
   isChecked,
@@ -34,13 +40,19 @@ export function EntryCard({
   onClick,
   onDoubleClick,
   thumb,
+  draggable,
+  onDragStart,
 }: EntryCardProps) {
   return (
     <div
       data-idx={idx}
+      data-entry-key={entryKey}
       className={className}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      draggable={!!draggable}
+      onDragStart={onDragStart}
+      onDragStartCapture={onDragStart}
     >
       <div className="card-thumb">{thumb}</div>
 
@@ -49,7 +61,10 @@ export function EntryCard({
       </div>
 
       <div className="card-check">
-        <label className="card-check-label" onClick={(e) => e.stopPropagation()}>
+        <label
+          className="card-check-label"
+          onClick={(e) => e.stopPropagation()}
+        >
           <input
             className="card-check-input"
             type="checkbox"
@@ -57,10 +72,9 @@ export function EntryCard({
             onChange={onCheckboxChange}
           />
           <span
-            className={[
-              "card-check-box",
-              isChecked ? "is-checked" : "",
-            ].filter(Boolean).join(" ")}
+            className={["card-check-box", isChecked ? "is-checked" : ""]
+              .filter(Boolean)
+              .join(" ")}
             aria-hidden="true"
           >
             {isChecked && (

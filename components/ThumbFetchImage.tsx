@@ -169,7 +169,7 @@ export function ThumbFetchImage({ src, alt, className }: Props) {
       alt={alt}
       className={className}
       decoding="async"
-      // loading="lazy" は fetch 方式では意味が薄いので外す（置いても害は少ないが）
+      draggable={false}
       style={{ opacity: loaded ? 1 : 0 }}
     />
   );

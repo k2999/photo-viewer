@@ -1,25 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThumbFetchImage } from "@/components/ThumbFetchImage";
 
 type Props = {
   src: string;
   alt: string;
   className?: string;
-  rootMargin?: string; // 例: "600px"
+  rootMargin?: string;
 };
 
-export function ThumbImage({
-  src,
-  alt,
-  className,
-  rootMargin = "600px",
-}: Props) {
-  const [el, setEl] = useState<HTMLElement | null>(null);
+export function ThumbImage({ src, alt, className, rootMargin = "600px" }: Props) {
+  const elRef = useRef<HTMLElement | null>(null);
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
+    const el = elRef.current;
     if (!el) return;
     if (enabled) return;
 
@@ -38,23 +34,19 @@ export function ThumbImage({
 
     obs.observe(el);
     return () => obs.disconnect();
-  }, [el, enabled, rootMargin]);
+  }, [enabled, rootMargin]);
 
   const actualSrc = enabled ? src : "";
 
   return (
     <span
-      ref={(n) => setEl(n)}
+      ref={(n) => { elRef.current = n; }}
       className={className}
       style={{ display: "block", width: "100%", height: "100%" }}
     >
       {enabled ? (
-        <ThumbFetchImage
-          src={actualSrc}
-          alt={alt}
-        />
+        <ThumbFetchImage src={actualSrc} alt={alt} />
       ) : (
-        // ここは見た目に合わせてスケルトン等
         <span style={{ display: "block", width: "100%", height: "100%" }} />
       )}
     </span>

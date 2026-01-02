@@ -31,6 +31,12 @@ type ViewerContextValue = {
   setSelectedEntry: (e: Entry | null) => void;
   currentDir: string;
   setCurrentDir: (dir: string) => void;
+  focusTarget: "tree" | "grid";
+  setFocusTarget: (t: "tree" | "grid") => void;
+  markedDir: string | null;
+  setMarkedDir: (dir: string | null) => void;
+  moveToDir: ((destDir: string, items: string[]) => void) | null;
+  setMoveToDir: (fn: ((destDir: string, items: string[]) => void) | null) => void;
   navigator: ViewerNavigator | null;
   setNavigator: (nav: ViewerNavigator | null) => void;
   navGen: number;
@@ -52,6 +58,9 @@ const ViewerContext = createContext<ViewerContextValue | null>(null);
 export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
   const [currentDir, setCurrentDirState] = useState<string>(".");
+  const [focusTarget, setFocusTarget] = useState<"tree" | "grid">("grid");
+  const [markedDir, setMarkedDirState] = useState<string | null>(null);
+  const [moveToDir, _setMoveToDir] = useState<((destDir: string, items: string[]) => void) | null>(null);
   const [navigator, setNavigator] = useState<ViewerNavigator | null>(null);
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -64,6 +73,18 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       const raw = window.localStorage.getItem("photoViewer:cardWidth");
       const n = raw ? Number(raw) : NaN;
       if (Number.isFinite(n)) setCardWidthState(n);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // markedDir: restore
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("photoViewer:markedDir");
+      if (raw && typeof raw === "string") {
+        setMarkedDirState(raw);
+      }
     } catch {
       // ignore
     }
@@ -125,12 +146,39 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setMarkedDir = useCallback((dir: string | null) => {
+    setMarkedDirState(dir);
+    try {
+      if (!dir) window.localStorage.removeItem("photoViewer:markedDir");
+      else window.localStorage.setItem("photoViewer:markedDir", dir);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setMoveToDir = useCallback(
+    (fn: ((destDir: string, items: string[]) => void) | null) => {
+      if (fn == null) {
+        _setMoveToDir(null);
+      } else {
+        _setMoveToDir(() => fn);
+      }
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       selectedEntry,
       setSelectedEntry,
       currentDir,
       setCurrentDir,
+      focusTarget,
+      setFocusTarget,
+      markedDir,
+      setMarkedDir,
+      moveToDir,
+      setMoveToDir,
       navigator,
       setNavigator,
       navGen,
@@ -150,6 +198,11 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       selectedEntry,
       currentDir,
       setCurrentDir,
+      focusTarget,
+      markedDir,
+      setMarkedDir,
+      moveToDir,
+      setMoveToDir,
       navigator,
       navGen,
       bumpNavGen,

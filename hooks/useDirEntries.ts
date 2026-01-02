@@ -16,12 +16,41 @@ export function useDirEntries(currentPath: string) {
     setIsPreviewOpen(false);
   }, []);
 
+  const removeEntriesByRelativePath = useCallback((paths: string[]) => {
+    const removeSet = new Set(paths);
+
+    setEntries((prev) => {
+      if (prev.length === 0) return prev;
+
+      // 現在選択中の相対パスを保持（消えたら近い位置へ寄せる）
+      const cur = prev[selectedIndex]?.relativePath ?? null;
+
+      const next = prev.filter((e) => !removeSet.has(e.relativePath));
+      if (next.length === prev.length) return prev;
+
+      // selectedIndex 補正
+      setSelectedIndex((oldIdx) => {
+        if (next.length === 0) return 0;
+
+        if (cur) {
+          const idx = next.findIndex((e) => e.relativePath === cur);
+          if (idx >= 0) return idx;
+        }
+
+        // cur が消えた / cur が null の場合は、元の index 近辺に寄せる
+        return Math.min(Math.max(0, oldIdx), next.length - 1);
+      });
+
+      // プレビュー中に対象が消えた可能性があるので閉じる（安全側）
+      setIsPreviewOpen(false);
+
+      return next;
+    });
+  }, [selectedIndex]);
+
   const reload = useCallback(() => {
     // 前回のリクエストが残っていれば中断
     abortRef.current?.abort();
-
-    setEntries([]);
-    resetViewState();
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -60,5 +89,6 @@ export function useDirEntries(currentPath: string) {
     isPreviewOpen,
     setIsPreviewOpen,
     reload,
+    removeEntriesByRelativePath,
   };
 }

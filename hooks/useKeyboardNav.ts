@@ -17,6 +17,7 @@ export type UseKeyboardNavArgs = {
   gridCols: number;
 
   selectedEntry: SelectedEntryLike;
+  enabled?: boolean;
 
   isPreviewOpen: boolean;
   setIsPreviewOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -36,6 +37,7 @@ export function useKeyboardNav({
   entriesLength,
   gridCols,
   selectedEntry,
+  enabled = true,
   isPreviewOpen,
   setIsPreviewOpen,
   setSelectedIndex,
@@ -48,6 +50,7 @@ export function useKeyboardNav({
 }: UseKeyboardNavArgs) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (!enabled) return;
       if (entriesLength === 0) return;
 
       if (e.key === "h" || e.key === "ArrowLeft") {
@@ -113,6 +116,7 @@ export function useKeyboardNav({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
+    enabled,
     entriesLength,
     gridCols,
     selectedEntry,

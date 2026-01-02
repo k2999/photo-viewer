@@ -5,7 +5,8 @@ import type { CardWidthPx } from "@/components/ViewerContext";
 export type ViewerToolbarProps = {
   checkedCount: number;
   onBulkDelete: () => void;
-  onBulkMove: () => void;
+  onMoveToMarked: () => void;
+  markedDir: string | null;
   cardWidth: number;
   onCardWidthChange?: (px: number) => void;
 };
@@ -13,7 +14,8 @@ export type ViewerToolbarProps = {
 export function ViewerToolbar({
   checkedCount,
   onBulkDelete,
-  onBulkMove,
+  onMoveToMarked,
+  markedDir,
   cardWidth,
   onCardWidthChange,
 }: ViewerToolbarProps) {
@@ -25,9 +27,17 @@ export function ViewerToolbar({
       <button className="toolbar-button" onClick={onBulkDelete}>
         削除
       </button>
-      <button className="toolbar-button" onClick={onBulkMove}>
+      <button
+        className="toolbar-button"
+        onClick={onMoveToMarked}
+        disabled={!markedDir}
+        title={markedDir ? `移動先: ${markedDir}` : "移動先をツリーでマークしてください"}
+      >
         移動
       </button>
+      <span style={{ fontSize: 11, color: "#666" }}>
+        移動先: {markedDir ?? "（未設定）"}
+      </span>
       <label style={{ marginLeft: 12, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 8 }}>
         サイズ
         <input

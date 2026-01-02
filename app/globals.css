@@ -27,6 +27,18 @@ a {
   display: flex;
 }
 
+/* ===== Focus (Tree / Grid) ===== */
+.app-root[data-focus="tree"] .main,
+.app-root[data-focus="grid"] .sidebar {
+  background-color: #eee;
+}
+
+/* フォーカス側に軽い強調（好みで調整可） */
+.app-root[data-focus="tree"] .sidebar,
+.app-root[data-focus="grid"] .main {
+  background-color: #fff;
+}
+
 /* Sidebar */
 .sidebar {
   width: 260px;
@@ -236,7 +248,7 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-.card-same-time-badge{
+.card-same-time-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -250,7 +262,7 @@ a {
   pointer-events: none;
 }
 
-.card-same-time-badge .same-time-count{
+.card-same-time-badge .same-time-count {
   font-variant-numeric: tabular-nums;
 }
 
@@ -447,6 +459,22 @@ a {
   background: rgba(0, 0, 0, 0.04);
 }
 
+/* Tree cursor (focusedPath) */
+.tree-row.is-cursor {
+  outline: 2px solid rgba(37, 99, 235, 0.65);
+  outline-offset: -2px;
+}
+
+/* Tree がフォーカスされていないときはカーソルを弱める */
+.tree-root:not(.is-focused) .tree-row.is-cursor {
+  outline-color: rgba(0, 0, 0, 0.25);
+}
+
+/* active と cursor が重なる場合の視認性 */
+.tree-row.is-active.is-cursor {
+  outline-color: rgba(37, 99, 235, 0.9);
+}
+
 .tree-toggle {
   width: 18px;
   height: 18px;
@@ -501,4 +529,37 @@ a {
   margin-left: 18px;
   padding-left: 8px;
   border-left: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* Mark destination */
+.tree-mark {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+}
+
+.tree-row:hover .tree-mark {
+  opacity: 0.35;
+}
+
+.tree-row.is-marked .tree-mark {
+  opacity: 1;
+  color: #2563eb;
+}
+
+/* Marked row hint (控えめ) */
+.tree-row.is-marked:not(.is-active) {
+  color: #2563eb;
+}
+
+.tree-row.is-dropover {
+  outline: 2px solid rgba(80, 140, 255, 0.9);
+  outline-offset: -2px;
+  background: rgba(80, 140, 255, 0.12);
 }
