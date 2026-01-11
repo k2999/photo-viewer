@@ -1,6 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState, useCallback, useRef, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
+import { usePathname } from "next/navigation";
+import { pathnameToDir } from "@/lib/path";
 
 export type Entry = {
   name: string;
@@ -14,31 +24,16 @@ export function entryKeyOf(entry: Entry): EntryKey {
   return entry.type === "dir" ? `${entry.relativePath}/` : entry.relativePath;
 }
 
-export type ViewerNavigator = {
-  pushDir: (dirPath: string) => void;
-  goParent: () => void;
-  goSiblingDir: (delta: -1 | 1) => void;
-};
-
-const NOOP_NAVIGATOR: ViewerNavigator = {
-  pushDir: () => {},
-  goParent: () => {},
-  goSiblingDir: () => {},
-};
-
 type ViewerContextValue = {
   selectedEntry: Entry | null;
   setSelectedEntry: (e: Entry | null) => void;
   currentDir: string;
-  setCurrentDir: (dir: string) => void;
   focusTarget: "tree" | "grid";
   setFocusTarget: (t: "tree" | "grid") => void;
   markedDir: string | null;
   setMarkedDir: (dir: string | null) => void;
   moveToDir: ((destDir: string, items: string[]) => void) | null;
   setMoveToDir: (fn: ((destDir: string, items: string[]) => void) | null) => void;
-  navigator: ViewerNavigator | null;
-  setNavigator: (nav: ViewerNavigator | null) => void;
   navGen: number;
   bumpNavGen: () => void;
   isNavigating: boolean;
@@ -56,17 +51,19 @@ type ViewerContextValue = {
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
 export function ViewerProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const currentDir = useMemo(() => pathnameToDir(pathname), [pathname]);
+
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
-  const [currentDir, setCurrentDirState] = useState<string>(".");
   const [focusTarget, setFocusTarget] = useState<"tree" | "grid">("grid");
   const [markedDir, setMarkedDirState] = useState<string | null>(null);
   const [moveToDir, _setMoveToDir] = useState<((destDir: string, items: string[]) => void) | null>(null);
-  const [navigator, setNavigator] = useState<ViewerNavigator | null>(null);
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [checked, setChecked] = useState<Set<EntryKey>>(() => new Set());
   const [cardWidth, setCardWidthState] = useState<CardWidthPx>(220);
   const listedKeysRef = useRef<EntryKey[]>([]);
+  const prevDirRef = useRef<string>(currentDir);
 
   useEffect(() => {
     try {
@@ -100,11 +97,13 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     setIsNavigating(false);
   }, []);
 
-  const setCurrentDir = useCallback((dir: string) => {
-    setCurrentDirState(dir);
+  // URL(=currentDir) 変更に追従して、ディレクトリに紐づく state をリセット
+  useEffect(() => {
+    if (prevDirRef.current === currentDir) return;
+    prevDirRef.current = currentDir;
     setChecked(new Set());
     listedKeysRef.current = [];
-  }, []);
+  }, [currentDir]);
 
   const toggleCheck = useCallback((key: EntryKey) => {
     setChecked((prev) => {
@@ -172,15 +171,12 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       selectedEntry,
       setSelectedEntry,
       currentDir,
-      setCurrentDir,
       focusTarget,
       setFocusTarget,
       markedDir,
       setMarkedDir,
       moveToDir,
       setMoveToDir,
-      navigator,
-      setNavigator,
       navGen,
       bumpNavGen,
       isNavigating,
@@ -197,13 +193,11 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     [
       selectedEntry,
       currentDir,
-      setCurrentDir,
       focusTarget,
       markedDir,
       setMarkedDir,
       moveToDir,
       setMoveToDir,
-      navigator,
       navGen,
       bumpNavGen,
       isNavigating,
@@ -225,9 +219,4 @@ export function useViewer() {
   const ctx = useContext(ViewerContext);
   if (!ctx) throw new Error("useViewer must be used within ViewerProvider");
   return ctx;
-}
-
-export function useViewerNav() {
-  const { navigator } = useViewer();
-  return navigator ?? NOOP_NAVIGATOR;
 }

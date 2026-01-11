@@ -23,11 +23,11 @@ export function PreviewOverlay({
   hasPrev,
   hasNext,
 }: PreviewOverlayProps) {
+  const { checked, toggleCheck } = useViewer();
+
   if (!isOpen) return null;
   if (!entry) return null;
   if (entry.type === "dir") return null;
-
-  const { checked, toggleCheck } = useViewer();
   const key = entryKeyOf(entry);
   const isChecked = checked.has(key);
 

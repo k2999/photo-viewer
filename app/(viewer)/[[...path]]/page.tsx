@@ -13,7 +13,8 @@ import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { ViewerToolbar } from "@/components/ViewerToolbar";
 import { ThumbImage } from "@/components/ThumbImage";
-import { entryKeyOf, useViewer, useViewerNav } from "@/components/ViewerContext";
+import { entryKeyOf, useViewer } from "@/components/ViewerContext";
+import { useViewerNavigator } from "@/hooks/useViewerNavigator";
 import { VideoBadge } from "@/components/VideoBadge";
 import { ExifPrefetch } from "@/components/ExifPrefetch";
 import { abortAllExifRequests } from "@/hooks/useExif";
@@ -124,7 +125,7 @@ export default function PhotoViewerPage() {
     setMoveToDir,
   } = useViewer();
 
-  const nav = useViewerNav();
+  const nav = useViewerNavigator();
   const { dirThumbs, fetchDirThumbs, resetDirThumbs, abortAllDirThumbs } = useDirThumbs();
 
   const {
