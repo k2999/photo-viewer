@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ThumbFetchImage } from "@/components/ThumbFetchImage";
+import { Image } from "@/components/Image";
 
 type Props = {
   src: string;
@@ -10,7 +10,7 @@ type Props = {
   rootMargin?: string;
 };
 
-export function ThumbImage({ src, alt, className, rootMargin = "600px" }: Props) {
+export function PhotoThumbnail({ src, alt, className, rootMargin = "600px" }: Props) {
   const elRef = useRef<HTMLElement | null>(null);
   const [enabled, setEnabled] = useState(false);
 
@@ -40,12 +40,14 @@ export function ThumbImage({ src, alt, className, rootMargin = "600px" }: Props)
 
   return (
     <span
-      ref={(n) => { elRef.current = n; }}
+      ref={(n) => {
+        elRef.current = n;
+      }}
       className={className}
       style={{ display: "block", width: "100%", height: "100%" }}
     >
       {enabled ? (
-        <ThumbFetchImage src={actualSrc} alt={alt} />
+        <Image src={actualSrc} alt={alt} />
       ) : (
         <span style={{ display: "block", width: "100%", height: "100%" }} />
       )}

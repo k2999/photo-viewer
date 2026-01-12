@@ -104,6 +104,7 @@ export function PreviewOverlay({
       <div className="preview-content-wrapper">
         <div className="preview-content">
           {entry.type === "image" && (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={`/api/file?path=${encodeURIComponent(entry.relativePath)}`}
               alt={entry.name}

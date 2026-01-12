@@ -22,7 +22,7 @@ export type EntryCardProps = {
   onClick: () => void;
   onDoubleClick: () => void;
 
-  // サムネ部分（DirThumbGrid や <img> をそのまま渡す）
+  // サムネ部分（DirectoryThumbnail や <img> をそのまま渡す）
   thumb: ReactNode;
 
   draggable?: boolean;

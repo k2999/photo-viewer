@@ -1,11 +1,15 @@
 import fs from "fs/promises";
 import path from "path";
 
-const ROOT_DIR = process.env.ROOT_DIR;
-
-if (!ROOT_DIR) {
-  throw new Error("ROOT_DIR is not set. Please configure it in .env.local");
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not set. Please configure it in .env.local`);
+  }
+  return value;
 }
+
+const ROOT_DIR = requireEnv("ROOT_DIR");
 
 export type FsEntry = {
   name: string;

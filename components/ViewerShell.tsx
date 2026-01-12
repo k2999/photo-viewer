@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { DirectoryTree, type TreeNode, type DirectoryTreeHandle } from "@/components/DirectoryTree";
+import { DirectoryTree, type TreeNode } from "@/components/DirectoryTree";
 import { ExifPanel } from "@/components/ExifPanel";
 import { useViewer } from "@/components/ViewerContext";
+import { useDirectoryTreeController } from "@/hooks/useDirectoryTreeController";
 import { useViewerNavigator } from "@/hooks/useViewerNavigator";
 import { normalizeDir } from "@/lib/path";
 
@@ -29,6 +30,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
     cardWidth,
     focusTarget,
     setFocusTarget,
+    gridKeyboardControllerRef,
     markedDir,
     setMarkedDir,
     moveToDir,
@@ -36,7 +38,17 @@ export function ViewerShell({ children }: { children: ReactNode }) {
 
   const nav = useViewerNavigator();
 
-  const treeRef = useRef<DirectoryTreeHandle | null>(null);
+  const treeCtrl = useDirectoryTreeController({
+    tree,
+    currentDir,
+    isFocused: focusTarget === "tree",
+    markedDir,
+    onSelectDir: (p) => nav.pushDir(p),
+    onMarkDir: (p) => setMarkedDir(p),
+    onDropItems: (destDir, items) => {
+      moveToDir?.(destDir, items);
+    },
+  });
 
   useEffect(() => {
     fetch(`/api/dir-tree?path=.&depth=3`)
@@ -59,8 +71,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
     endNavigating();
   }, [pathname, endNavigating]);
 
-  // Tabで Tree ⇄ Grid
-  // Tree フォーカス中は hjkl/Enter を Tree へ転送
+  // 全体共通のキーハンドラ：フォーカスに応じて Tree / Grid へ振り分け
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
@@ -68,23 +79,76 @@ export function ViewerShell({ children }: { children: ReactNode }) {
         setFocusTarget(focusTarget === "tree" ? "grid" : "tree");
         return;
       }
-      if (focusTarget !== "tree") return;
 
-      // Tree用キーだけ拾う（それ以外は何もしない）
-      if (
-        e.key === "h" ||
-        e.key === "j" ||
-        e.key === "k" ||
-        e.key === "l" ||
-        e.key === "Enter" ||
-        e.key === " "
-      ) {
-        treeRef.current?.handleKey(e);
+      if (focusTarget === "tree") {
+        // Tree用キーだけ拾う（それ以外は何もしない）
+        if (e.key === "j") {
+          e.preventDefault();
+          treeCtrl.cursorDown();
+        } else if (e.key === "k") {
+          e.preventDefault();
+          treeCtrl.cursorUp();
+        } else if (e.key === "h") {
+          e.preventDefault();
+          treeCtrl.collapseOrParent();
+        } else if (e.key === "l") {
+          e.preventDefault();
+          treeCtrl.expandOrFirstChild();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          treeCtrl.enter();
+        } else if (e.key === " ") {
+          e.preventDefault();
+          treeCtrl.toggleMark();
+        }
+        return;
+      }
+
+      if (focusTarget === "grid") {
+        const grid = gridKeyboardControllerRef.current;
+        if (!grid) return;
+
+        if (e.key === "h" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          grid.selectLeft();
+        } else if (e.key === "l" || e.key === "ArrowRight") {
+          e.preventDefault();
+          grid.selectRight();
+        } else if (e.key === "j" || e.key === "ArrowDown") {
+          e.preventDefault();
+          grid.selectDown();
+        } else if (e.key === "k" || e.key === "ArrowUp") {
+          e.preventDefault();
+          grid.selectUp();
+        } else if (e.key === "H" || e.key === "J") {
+          e.preventDefault();
+          grid.goSiblingDir(1);
+        } else if (e.key === "L" || e.key === "K") {
+          e.preventDefault();
+          grid.goSiblingDir(-1);
+        } else if (e.key === " ") {
+          e.preventDefault();
+          grid.toggleCheckSelected();
+        } else if (e.metaKey && e.key === "a") {
+          e.preventDefault();
+          if (!e.shiftKey) grid.selectAll();
+          else grid.deselectAll();
+        } else if (e.key === "Escape") {
+          grid.escape();
+        } else if (e.key === "Enter") {
+          if (!e.shiftKey) {
+            e.preventDefault();
+            grid.enter();
+          } else {
+            e.preventDefault();
+            grid.shiftEnter();
+          }
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focusTarget, setFocusTarget]);
+  }, [focusTarget, setFocusTarget, gridKeyboardControllerRef, treeCtrl]);
 
   return (
     <div className="app-root" data-focus={focusTarget}>
@@ -111,18 +175,24 @@ export function ViewerShell({ children }: { children: ReactNode }) {
         </button>
 
         <DirectoryTree
-          ref={treeRef}
           tree={tree}
           currentDir={currentDir}
           isFocused={focusTarget === "tree"}
           markedDir={markedDir}
+          expanded={treeCtrl.expanded}
+          focusedPath={treeCtrl.focusedPath}
+          dragOverPath={treeCtrl.dragOverPath}
+          activeRef={treeCtrl.activeRef}
+          cursorRef={treeCtrl.cursorRef}
+          setFocusedPath={treeCtrl.setFocusedPath}
+          toggleExpanded={treeCtrl.toggleExpanded}
+          isInternalMoveDnD={treeCtrl.isInternalMoveDnD}
+          onRowDragEnter={treeCtrl.onRowDragEnter}
+          onRowDragOver={treeCtrl.onRowDragOver}
+          onRowDragLeave={treeCtrl.onRowDragLeave}
+          onRowDrop={treeCtrl.onRowDrop}
           onMarkDir={(p) => setMarkedDir(p)}
-          onSelectDir={(p) => {
-            nav.pushDir(p);
-          }}
-          onDropItems={(destDir, items) => {
-            moveToDir?.(destDir, items);
-          }}
+          onSelectDir={(p) => nav.pushDir(p)}
         />
 
         <ExifPanel entry={selectedEntry} />

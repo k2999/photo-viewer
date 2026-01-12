@@ -2,7 +2,7 @@
 
 import type { CardWidthPx } from "@/components/ViewerContext";
 
-export type ViewerToolbarProps = {
+export type ToolbarProps = {
   checkedCount: number;
   onBulkDelete: () => void;
   onMoveToMarked: () => void;
@@ -11,14 +11,14 @@ export type ViewerToolbarProps = {
   onCardWidthChange?: (px: number) => void;
 };
 
-export function ViewerToolbar({
+export function Toolbar({
   checkedCount,
   onBulkDelete,
   onMoveToMarked,
   markedDir,
   cardWidth,
   onCardWidthChange,
-}: ViewerToolbarProps) {
+}: ToolbarProps) {
   const handleCardWidthChange =
     typeof onCardWidthChange === "function" ? onCardWidthChange : () => {};
   return (
@@ -38,7 +38,15 @@ export function ViewerToolbar({
       <span style={{ fontSize: 11, color: "#666" }}>
         移動先: {markedDir ?? "（未設定）"}
       </span>
-      <label style={{ marginLeft: 12, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <label
+        style={{
+          marginLeft: 12,
+          fontSize: 11,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
         サイズ
         <input
           type="range"
@@ -50,9 +58,7 @@ export function ViewerToolbar({
         />
         <span style={{ width: 44, textAlign: "right" }}>{cardWidth}px</span>
       </label>
-      <div className="toolbar-spacer">
-        hjkl:移動 / Space:チェック / Enter:拡大
-      </div>
+      <div className="toolbar-spacer">hjkl:移動 / Space:チェック / Enter:拡大</div>
     </div>
   );
 }

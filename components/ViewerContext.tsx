@@ -20,16 +20,32 @@ export type Entry = {
 export type EntryKey = string;
 export type CardWidthPx = number;
 
+export type GridKeyboardController = {
+  selectLeft: () => void;
+  selectRight: () => void;
+  selectUp: () => void;
+  selectDown: () => void;
+  goSiblingDir: (delta: -1 | 1) => void;
+  toggleCheckSelected: () => void;
+  selectAll: () => void;
+  deselectAll: () => void;
+  escape: () => void;
+  enter: () => void;
+  shiftEnter: () => void;
+};
+
 export function entryKeyOf(entry: Entry): EntryKey {
   return entry.type === "dir" ? `${entry.relativePath}/` : entry.relativePath;
 }
 
-type ViewerContextValue = {
+export type ViewerContextValue = {
   selectedEntry: Entry | null;
   setSelectedEntry: (e: Entry | null) => void;
   currentDir: string;
   focusTarget: "tree" | "grid";
   setFocusTarget: (t: "tree" | "grid") => void;
+  gridKeyboardControllerRef: React.MutableRefObject<GridKeyboardController | null>;
+  setGridKeyboardController: (c: GridKeyboardController | null) => void;
   markedDir: string | null;
   setMarkedDir: (dir: string | null) => void;
   moveToDir: ((destDir: string, items: string[]) => void) | null;
@@ -48,6 +64,23 @@ type ViewerContextValue = {
   setCardWidth: (px: CardWidthPx) => void;
 };
 
+export type GridControllerDeps = Pick<
+  ViewerContextValue,
+  | "currentDir"
+  | "focusTarget"
+  | "checked"
+  | "setChecked"
+  | "toggleCheck"
+  | "registerListedKeys"
+  | "selectAll"
+  | "deselectAll"
+  | "cardWidth"
+  | "setCardWidth"
+  | "setMoveToDir"
+  | "setGridKeyboardController"
+  | "markedDir"
+>;
+
 const ViewerContext = createContext<ViewerContextValue | null>(null);
 
 export function ViewerProvider({ children }: { children: React.ReactNode }) {
@@ -64,6 +97,7 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const [cardWidth, setCardWidthState] = useState<CardWidthPx>(220);
   const listedKeysRef = useRef<EntryKey[]>([]);
   const prevDirRef = useRef<string>(currentDir);
+  const gridKeyboardControllerRef = useRef<GridKeyboardController | null>(null);
 
   useEffect(() => {
     try {
@@ -166,6 +200,10 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const setGridKeyboardController = useCallback((c: GridKeyboardController | null) => {
+    gridKeyboardControllerRef.current = c;
+  }, []);
+
   const value = useMemo(
     () => ({
       selectedEntry,
@@ -173,6 +211,8 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       currentDir,
       focusTarget,
       setFocusTarget,
+      gridKeyboardControllerRef,
+      setGridKeyboardController,
       markedDir,
       setMarkedDir,
       moveToDir,
@@ -209,6 +249,8 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       deselectAll,
       cardWidth,
       setCardWidth,
+      gridKeyboardControllerRef,
+      setGridKeyboardController,
     ]
   );
 

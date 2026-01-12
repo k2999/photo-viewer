@@ -63,7 +63,7 @@ function release() {
   pump();
 }
 
-export function ThumbFetchImage({ src, alt, className }: Props) {
+export function Image({ src, alt, className }: Props) {
   const { navGen, isNavigating } = useViewer();
 
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -100,7 +100,6 @@ export function ThumbFetchImage({ src, alt, className }: Props) {
     if (isNavigating) return;
 
     let alive = true;
-	let acquired = false;
 
     // すでに走っているものがあれば中断
     ctrlRef.current?.abort();
@@ -164,6 +163,7 @@ export function ThumbFetchImage({ src, alt, className }: Props) {
   }, []);
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={imgRef}
       alt={alt}
