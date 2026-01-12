@@ -6,6 +6,7 @@ export type ToolbarProps = {
   checkedCount: number;
   onBulkDelete: () => void;
   onMoveToMarked: () => void;
+  onSelectBurst: () => void;
   markedDir: string | null;
   cardWidth: number;
   onCardWidthChange?: (px: number) => void;
@@ -15,6 +16,7 @@ export function Toolbar({
   checkedCount,
   onBulkDelete,
   onMoveToMarked,
+  onSelectBurst,
   markedDir,
   cardWidth,
   onCardWidthChange,
@@ -34,6 +36,13 @@ export function Toolbar({
         title={markedDir ? `移動先: ${markedDir}` : "移動先をツリーでマークしてください"}
       >
         移動
+      </button>
+      <button
+        className="toolbar-button"
+        onClick={onSelectBurst}
+        title="フォーカス中の写真と、撮影時刻が1秒以内で連鎖する前後の写真をまとめて選択"
+      >
+        バースト選択
       </button>
       <span style={{ fontSize: 11, color: "#666" }}>
         移動先: {markedDir ?? "（未設定）"}
@@ -58,7 +67,7 @@ export function Toolbar({
         />
         <span style={{ width: 44, textAlign: "right" }}>{cardWidth}px</span>
       </label>
-      <div className="toolbar-spacer">hjkl:移動 / Space:チェック / Enter:拡大</div>
+      <div className="toolbar-spacer">hjkl:移動 / Space:チェック / Enter:拡大 / b:バースト選択</div>
     </div>
   );
 }

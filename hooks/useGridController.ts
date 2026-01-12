@@ -17,7 +17,7 @@ import { useDirThumbs } from "@/hooks/useDirThumbs";
 import { useDirEntries } from "@/hooks/useDirEntries";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { useSelectedEntrySync } from "@/hooks/useSelectedEntrySync";
-import { abortAllExifRequests, useExif } from "@/hooks/useExif";
+import { abortAllExifRequests, fetchExif, getCachedExif, useExif } from "@/hooks/useExif";
 import { useScrollFollowSelected } from "@/hooks/useScrollFollowSelected";
 import { PENDING_KEY, type ConflictDecision } from "@/lib/viewerGrid";
 
@@ -35,6 +35,7 @@ export type GridController = {
   selectUp: () => void;
   selectDown: () => void;
   toggleCheckSelected: () => void;
+  selectBurst: () => void;
   escape: () => void;
   enter: () => void;
   shiftEnter: () => void;
@@ -255,6 +256,90 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     [abortAllDirThumbs, nav, setIsPreviewOpen]
   );
 
+  const selectBurst = useCallback(() => {
+    void (async () => {
+      // 1. clear selection
+      setChecked(new Set());
+
+      const startIdx = selectedIndex;
+      const startEntry = entries[startIdx] ?? null;
+      if (!startEntry) return;
+      if (startEntry.type !== "image" && startEntry.type !== "video") {
+        // 「写真」以外は対象外（ディレクトリ等）
+        return;
+      }
+
+      const timeCache = new Map<number, number | null>();
+
+      const shotTimeMsAt = async (idx: number): Promise<number | null> => {
+        if (timeCache.has(idx)) return timeCache.get(idx)!;
+        const e = entries[idx] ?? null;
+        if (!e) {
+          timeCache.set(idx, null);
+          return null;
+        }
+        if (e.type !== "image" && e.type !== "video") {
+          timeCache.set(idx, null);
+          return null;
+        }
+
+        try {
+          const cached = getCachedExif(e.relativePath);
+          const exif = cached?.exif ?? (await fetchExif(e.relativePath)).exif;
+          const dk = pickExifDateKey(exif);
+          if (!dk) {
+            timeCache.set(idx, null);
+            return null;
+          }
+          const ms = new Date(dk).getTime();
+          if (!Number.isFinite(ms)) {
+            timeCache.set(idx, null);
+            return null;
+          }
+          timeCache.set(idx, ms);
+          return ms;
+        } catch {
+          timeCache.set(idx, null);
+          return null;
+        }
+      };
+
+      // 2. select focused photo
+      const selectedIndices = new Set<number>();
+      selectedIndices.add(startIdx);
+
+      // 3-4. expand to adjacent photos within 1s (transitive closure)
+      let left = startIdx;
+      while (left > 0) {
+        const a = await shotTimeMsAt(left);
+        const b = await shotTimeMsAt(left - 1);
+        if (a == null || b == null) break;
+        if (Math.abs(a - b) > 1000) break;
+        selectedIndices.add(left - 1);
+        left--;
+      }
+
+      let right = startIdx;
+      while (right < entries.length - 1) {
+        const a = await shotTimeMsAt(right);
+        const b = await shotTimeMsAt(right + 1);
+        if (a == null || b == null) break;
+        if (Math.abs(a - b) > 1000) break;
+        selectedIndices.add(right + 1);
+        right++;
+      }
+
+      const next = new Set<EntryKey>();
+      for (const idx of selectedIndices) {
+        const e = entries[idx];
+        if (!e) continue;
+        next.add(entryKeyOf(e));
+      }
+
+      setChecked(next);
+    })();
+  }, [entries, selectedIndex, setChecked]);
+
   const keyboard: GridKeyboardController = useMemo(
     () => ({
       selectLeft: () => {
@@ -297,6 +382,9 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
       deselectAll: () => {
         deselectAll();
       },
+      selectBurst: () => {
+        selectBurst();
+      },
       escape: () => {
         setIsPreviewOpen(false);
       },
@@ -324,6 +412,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
       toggleCheck,
       selectAll,
       deselectAll,
+      selectBurst,
       pushDir,
       setIsPreviewOpen,
       isPreviewOpen,
@@ -480,6 +569,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     selectUp: keyboard.selectUp,
     selectDown: keyboard.selectDown,
     toggleCheckSelected: keyboard.toggleCheckSelected,
+    selectBurst: keyboard.selectBurst,
     escape: keyboard.escape,
     enter: keyboard.enter,
     shiftEnter: keyboard.shiftEnter,

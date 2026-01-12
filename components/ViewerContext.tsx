@@ -29,6 +29,7 @@ export type GridKeyboardController = {
   toggleCheckSelected: () => void;
   selectAll: () => void;
   deselectAll: () => void;
+  selectBurst: () => void;
   escape: () => void;
   enter: () => void;
   shiftEnter: () => void;

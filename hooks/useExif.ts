@@ -103,6 +103,10 @@ export function prefetchExif(path: string) {
   void doFetchImpl(path).catch(() => {});
 }
 
+export function fetchExif(path: string): Promise<ExifPayload> {
+  return doFetchImpl(path);
+}
+
 export function getCachedExif(path: string): ExifPayload | undefined {
   return cache.get(path);
 }

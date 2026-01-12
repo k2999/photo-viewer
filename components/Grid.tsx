@@ -26,6 +26,7 @@ export function Grid() {
           const moved = await c.handleMoveItemsToDest(c.markedDir, Array.from(c.checked));
           if (moved && moved.length > 0) c.removeEntriesByRelativePath(moved);
         }}
+        onSelectBurst={c.selectBurst}
         markedDir={c.markedDir}
         cardWidth={c.cardWidth}
         onCardWidthChange={c.setCardWidth}

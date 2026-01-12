@@ -133,6 +133,9 @@ export function ViewerShell({ children }: { children: ReactNode }) {
           e.preventDefault();
           if (!e.shiftKey) grid.selectAll();
           else grid.deselectAll();
+        } else if (e.key === "b") {
+          e.preventDefault();
+          grid.selectBurst();
         } else if (e.key === "Escape") {
           grid.escape();
         } else if (e.key === "Enter") {
