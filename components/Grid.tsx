@@ -4,6 +4,7 @@ import { useGridController } from "@/hooks/useGridController";
 import { DirectoryThumbnail } from "@/components/DirectoryThumbnail";
 import { EntryCard } from "@/components/EntryCard";
 import { PreviewOverlay } from "@/components/PreviewOverlay";
+import { ChooseOverlay } from "@/components/ChooseOverlay";
 import { Toolbar } from "@/components/Toolbar";
 import { PhotoThumbnail } from "@/components/PhotoThumbnail";
 import { ExifPrefetch } from "@/components/ExifPrefetch";
@@ -131,6 +132,23 @@ export function Grid() {
         hasNext={c.selectedIndex < c.entries.length - 1}
         onPrev={() => c.setSelectedIndex((i) => Math.max(0, i - 1))}
         onNext={() => c.setSelectedIndex((i) => Math.min(c.entries.length - 1, i + 1))}
+      />
+
+      <ChooseOverlay
+        isOpen={c.deleteReview.open}
+        entry={c.deleteReview.entry}
+        onCancel={c.deleteReview.onCancel}
+        hasPrev={c.deleteReview.hasPrev}
+        hasNext={c.deleteReview.hasNext}
+        onPrev={c.deleteReview.onPrev}
+        onNext={c.deleteReview.onNext}
+        onMarkDelete={c.deleteReview.onMarkDelete}
+        onReset={c.deleteReview.onReset}
+        onConfirm={c.deleteReview.onConfirm}
+        busy={c.deleteReview.busy}
+        entries={c.deleteReview.entries}
+        currentIndex={c.deleteReview.currentIndex}
+        onSelectIndex={c.deleteReview.onSelectIndex}
       />
 
       <ConflictModal

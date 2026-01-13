@@ -136,9 +136,17 @@ export function ViewerShell({ children }: { children: ReactNode }) {
         } else if (e.key === "b") {
           e.preventDefault();
           grid.selectBurst();
+        } else if (e.key === "d") {
+          e.preventDefault();
+          grid.deleteReviewMarkDelete?.();
         } else if (e.key === "Escape") {
           grid.escape();
         } else if (e.key === "Enter") {
+          if (e.metaKey) {
+            e.preventDefault();
+            grid.commandEnter();
+            return;
+          }
           if (!e.shiftKey) {
             e.preventDefault();
             grid.enter();

@@ -22,6 +22,42 @@ const mimeMap: Record<string, string> = {
 
 const VIDEO_EXTS = new Set([".mp4", ".mov", ".avi", ".mkv"]);
 
+function buildEtag(stat: { size: number; mtimeMs: number }, variant: string) {
+  // weak ETag: サイズ/更新時刻/変換パラメータ相当で十分
+  return `W/"${stat.size}-${Math.floor(stat.mtimeMs)}-${variant}"`;
+}
+
+function cachingHeaders(args: {
+  contentType: string;
+  etag: string;
+  lastModified: Date;
+  contentLength?: number;
+  acceptRanges?: boolean;
+}) {
+  const h: Record<string, string> = {
+    "Content-Type": args.contentType,
+    ETag: args.etag,
+    "Last-Modified": args.lastModified.toUTCString(),
+    // 即時反映を優先：キャッシュは許可するが毎回 revalidate させる
+    // (ETag が一致すれば 304 で軽くなる)
+    "Cache-Control": "private, max-age=0, must-revalidate",
+  };
+  if (args.contentLength != null) h["Content-Length"] = String(args.contentLength);
+  if (args.acceptRanges) h["Accept-Ranges"] = "bytes";
+  return h;
+}
+
+function isNotModified(req: NextRequest, etag: string) {
+  const inm = req.headers.get("if-none-match");
+  if (!inm) return false;
+  // 複数ETag / * は最低限対応
+  if (inm.trim() === "*") return true;
+  return inm
+    .split(",")
+    .map((s) => s.trim())
+    .some((v) => v === etag);
+}
+
 function nodeStreamToWeb(stream: fs.ReadStream): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
@@ -57,7 +93,27 @@ export async function GET(req: NextRequest) {
     const { abs } = resolveSafePath(relativePath);
     const ext = path.extname(abs).toLowerCase();
 
+    const stat = await fsPromises.stat(abs);
+    if (!stat.isFile()) {
+      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+    }
+    const size = stat.size;
+
+    const baseContentType = mimeMap[ext] ?? "application/octet-stream";
+
     if (ext === ".heic") {
+      const etag = buildEtag(stat, "heic->jpeg:q90");
+      if (isNotModified(req, etag)) {
+        return new NextResponse(null, {
+          status: 304,
+          headers: cachingHeaders({
+            contentType: "image/jpeg",
+            etag,
+            lastModified: stat.mtime,
+          }),
+        });
+      }
+
       const src = await fsPromises.readFile(abs);
 
       // 必要ならサイズや画質は調整可能
@@ -69,34 +125,47 @@ export async function GET(req: NextRequest) {
       const body = new Uint8Array(jpegBuffer);
       return new NextResponse(body, {
         headers: {
-          "Content-Type": "image/jpeg",
-          "Cache-Control": "no-store",
+          ...cachingHeaders({
+            contentType: "image/jpeg",
+            etag,
+            lastModified: stat.mtime,
+            contentLength: body.byteLength,
+          }),
         },
       });
     }
 
-    const contentType = mimeMap[ext] ?? "application/octet-stream";
-
-    const stat = await fsPromises.stat(abs);
-    if (!stat.isFile()) {
-      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+    const etag = buildEtag(stat, "raw");
+    if (isNotModified(req, etag)) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: cachingHeaders({
+          contentType: baseContentType,
+          etag,
+          lastModified: stat.mtime,
+        }),
+      });
     }
-    const size = stat.size;
 
     // 動画は Range 対応（シークに必須）
     if (VIDEO_EXTS.has(ext)) {
       const range = req.headers.get("range");
+      const ifRange = req.headers.get("if-range");
+      const rangeAllowed = !ifRange || ifRange.trim() === etag;
 
       // Range なし：全量をストリーム
-      if (!range) {
+      if (!range || !rangeAllowed) {
         const stream = fs.createReadStream(abs);
         return new NextResponse(nodeStreamToWeb(stream), {
           status: 200,
           headers: {
-            "Content-Type": contentType,
-            "Content-Length": String(size),
-            "Accept-Ranges": "bytes",
-            "Cache-Control": "no-store",
+            ...cachingHeaders({
+              contentType: baseContentType,
+              etag,
+              lastModified: stat.mtime,
+              contentLength: size,
+              acceptRanges: true,
+            }),
           },
         });
       }
@@ -107,8 +176,12 @@ export async function GET(req: NextRequest) {
           status: 416,
           headers: {
             "Content-Range": `bytes */${size}`,
-            "Accept-Ranges": "bytes",
-            "Cache-Control": "no-store",
+            ...cachingHeaders({
+              contentType: baseContentType,
+              etag,
+              lastModified: stat.mtime,
+              acceptRanges: true,
+            }),
           },
         });
       }
@@ -120,11 +193,14 @@ export async function GET(req: NextRequest) {
       return new NextResponse(nodeStreamToWeb(stream), {
         status: 206,
         headers: {
-          "Content-Type": contentType,
           "Content-Length": String(chunkSize),
           "Content-Range": `bytes ${start}-${end}/${size}`,
-          "Accept-Ranges": "bytes",
-          "Cache-Control": "no-store",
+          ...cachingHeaders({
+            contentType: baseContentType,
+            etag,
+            lastModified: stat.mtime,
+            acceptRanges: true,
+          }),
         },
       });
     }
@@ -134,9 +210,12 @@ export async function GET(req: NextRequest) {
     return new NextResponse(nodeStreamToWeb(stream), {
       status: 200,
       headers: {
-        "Content-Type": contentType,
-        "Content-Length": String(size),
-        "Cache-Control": "no-store",
+        ...cachingHeaders({
+          contentType: baseContentType,
+          etag,
+          lastModified: stat.mtime,
+          contentLength: size,
+        }),
       },
     });
   } catch (e: any) {

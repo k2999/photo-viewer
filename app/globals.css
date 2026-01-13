@@ -324,6 +324,7 @@ a {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
+  z-index: 10;
 }
 
 .preview-header .card-check {
@@ -352,12 +353,55 @@ a {
   max-width: 70vw;
 }
 
+.preview-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 
 .preview-content img,
 .preview-content video {
   max-width: 100%;
   max-height: 90vh;
   object-fit: contain;
+}
+
+/* Preview thumbs (used by DeleteReviewOverlay) */
+.preview-thumbs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.preview-thumb {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+}
+
+.preview-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-thumb-selected {
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .preview-label {

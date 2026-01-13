@@ -30,6 +30,23 @@ export type GridController = {
   isPreviewOpen: boolean;
   setIsPreviewOpen: (v: boolean) => void;
 
+  deleteReview: {
+    open: boolean;
+    entry: Entry | null;
+    hasPrev: boolean;
+    hasNext: boolean;
+    onPrev: () => void;
+    onNext: () => void;
+    onMarkDelete: () => void;
+    onReset: () => void;
+    onConfirm: () => void;
+    onCancel: () => void;
+    busy: boolean;
+    entries: Entry[];
+    currentIndex: number;
+    onSelectIndex: (idx: number) => void;
+  };
+
   selectLeft: () => void;
   selectRight: () => void;
   selectUp: () => void;
@@ -206,15 +223,153 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [gridCols, setGridCols] = useState<number>(1);
 
+  const [deleteReviewState, setDeleteReviewState] = useState<{
+    open: boolean;
+    originalEntries: Entry[];
+    entries: Entry[];
+    idx: number;
+    marked: string[];
+    busy: boolean;
+  }>({ open: false, originalEntries: [], entries: [], idx: 0, marked: [], busy: false });
+
+  const deleteReviewEntry = deleteReviewState.entries[deleteReviewState.idx] ?? null;
+
+  const closeDeleteReview = useCallback(() => {
+    setDeleteReviewState({
+      open: false,
+      originalEntries: [],
+      entries: [],
+      idx: 0,
+      marked: [],
+      busy: false,
+    });
+  }, []);
+
+  const openDeleteReview = useCallback(() => {
+    // 「選択されている画像だけ」を表示対象にする
+    const selectedImages = entries.filter(
+      (e) => e.type === "image" && checked.has(entryKeyOf(e))
+    );
+    if (selectedImages.length === 0) return;
+
+    // フォーカス中の画像が含まれていれば、そこから開始
+    let startIdx = 0;
+    if (selectedEntry?.type === "image") {
+      const focusedKey = entryKeyOf(selectedEntry);
+      const i = selectedImages.findIndex((e) => entryKeyOf(e) === focusedKey);
+      if (i >= 0) startIdx = i;
+    }
+
+    setIsPreviewOpen(false);
+    setDeleteReviewState({
+      open: true,
+      originalEntries: selectedImages,
+      entries: selectedImages,
+      idx: startIdx,
+      marked: [],
+      busy: false,
+    });
+  }, [entries, checked, selectedEntry, setIsPreviewOpen]);
+
+  const deleteReviewReset = useCallback(() => {
+    setDeleteReviewState((s) => {
+      if (!s.open) return s;
+      if (s.busy) return s;
+
+      const cur = s.entries[s.idx] ?? null;
+      const curKey = cur ? entryKeyOf(cur) : null;
+
+      const restoredEntries = s.originalEntries;
+      if (restoredEntries.length === 0) {
+        return { ...s, entries: [], idx: 0, marked: [] };
+      }
+
+      let nextIdx = 0;
+      if (curKey) {
+        const i = restoredEntries.findIndex((e) => entryKeyOf(e) === curKey);
+        if (i >= 0) nextIdx = i;
+      }
+
+      return { ...s, entries: restoredEntries, idx: nextIdx, marked: [] };
+    });
+  }, []);
+
+  const deleteReviewPrev = useCallback(() => {
+    setDeleteReviewState((s) => {
+      if (!s.open) return s;
+      const n = s.entries.length;
+      if (n <= 1) return s;
+      return { ...s, idx: (s.idx - 1 + n) % n };
+    });
+  }, []);
+
+  const deleteReviewNext = useCallback(() => {
+    setDeleteReviewState((s) => {
+      if (!s.open) return s;
+      const n = s.entries.length;
+      if (n <= 1) return s;
+      return { ...s, idx: (s.idx + 1) % n };
+    });
+  }, []);
+
+  const deleteReviewMarkDelete = useCallback(() => {
+    setDeleteReviewState((s) => {
+      if (!s.open) return s;
+      if (s.busy) return s;
+      const cur = s.entries[s.idx] ?? null;
+      if (!cur) return s;
+      if (cur.type !== "image") return s;
+
+      const key = entryKeyOf(cur);
+      const nextMarked = s.marked.includes(key) ? s.marked : [...s.marked, key];
+      const nextEntries = s.entries.filter((e) => entryKeyOf(e) !== key);
+      const nextIdx = nextEntries.length === 0 ? 0 : Math.min(s.idx, nextEntries.length - 1);
+      return { ...s, marked: nextMarked, entries: nextEntries, idx: nextIdx };
+    });
+  }, []);
+
+  const deleteReviewConfirm = useCallback(() => {
+    void (async () => {
+      const marked = deleteReviewState.marked;
+      if (marked.length === 0) {
+        closeDeleteReview();
+        return;
+      }
+
+      setDeleteReviewState((s) => (s.open ? { ...s, busy: true } : s));
+      try {
+        const res = await fetch("/api/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "delete", items: marked }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        removeEntriesByRelativePath(marked);
+        setChecked((prev) => {
+          const next = new Set(prev);
+          for (const k of marked) next.delete(k);
+          return next;
+        });
+
+        closeDeleteReview();
+      } catch (e) {
+        console.error("delete failed", e);
+        setDeleteReviewState((s) => (s.open ? { ...s, busy: false } : s));
+      }
+    })();
+  }, [deleteReviewState.marked, closeDeleteReview, removeEntriesByRelativePath, setChecked]);
+
   useEffect(() => {
     abortAllExifRequests();
     abortAllDirThumbs();
     resetDirThumbs();
     setIsPreviewOpen(false);
+    closeDeleteReview();
     setSelectedIndex(0);
     setSelectedDateKey(null);
     setDateKeyMap({});
-  }, [currentDir, abortAllDirThumbs, resetDirThumbs, setIsPreviewOpen, setSelectedIndex]);
+  }, [currentDir, abortAllDirThumbs, resetDirThumbs, setIsPreviewOpen, setSelectedIndex, closeDeleteReview]);
 
   useSelectedEntrySync(selectedEntry);
 
@@ -343,16 +498,25 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
   const keyboard: GridKeyboardController = useMemo(
     () => ({
       selectLeft: () => {
+        if (deleteReviewState.open) {
+          deleteReviewPrev();
+          return;
+        }
         const entriesLength = entries.length;
         if (entriesLength === 0) return;
         setSelectedIndex((i) => Math.max(0, i - 1));
       },
       selectRight: () => {
+        if (deleteReviewState.open) {
+          deleteReviewNext();
+          return;
+        }
         const entriesLength = entries.length;
         if (entriesLength === 0) return;
         setSelectedIndex((i) => Math.min(entriesLength - 1, i + 1));
       },
       selectDown: () => {
+        if (deleteReviewState.open) return;
         const entriesLength = entries.length;
         if (entriesLength === 0) return;
         setSelectedIndex((i) => {
@@ -361,6 +525,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
         });
       },
       selectUp: () => {
+        if (deleteReviewState.open) return;
         const entriesLength = entries.length;
         if (entriesLength === 0) return;
         setSelectedIndex((i) => {
@@ -369,26 +534,44 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
         });
       },
       goSiblingDir: (delta: -1 | 1) => {
+        if (deleteReviewState.open) return;
         goSiblingDir(delta);
       },
       toggleCheckSelected: () => {
+        if (deleteReviewState.open) return;
         const key = entryKeyOfSelected(selectedEntry);
         if (!key) return;
         toggleCheck(key);
       },
       selectAll: () => {
+        if (deleteReviewState.open) return;
         selectAll();
       },
       deselectAll: () => {
+        if (deleteReviewState.open) return;
         deselectAll();
       },
       selectBurst: () => {
+        if (deleteReviewState.open) return;
         selectBurst();
       },
+      commandEnter: () => {
+        if (deleteReviewState.open) return;
+        openDeleteReview();
+      },
+      deleteReviewMarkDelete: () => {
+        if (!deleteReviewState.open) return;
+        deleteReviewMarkDelete();
+      },
       escape: () => {
-        setIsPreviewOpen(false);
+        if (deleteReviewState.open) {
+          closeDeleteReview();
+        } else {
+          setIsPreviewOpen(false);
+        }
       },
       enter: () => {
+        if (deleteReviewState.open) return;
         if (selectedEntry?.type === "dir") {
           pushDir(selectedEntry.relativePath);
         } else if (selectedEntry?.type === "image" || selectedEntry?.type === "video") {
@@ -396,6 +579,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
         }
       },
       shiftEnter: () => {
+        if (deleteReviewState.open) return;
         if (!isPreviewOpen) {
           goParent();
         } else {
@@ -417,6 +601,12 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
       setIsPreviewOpen,
       isPreviewOpen,
       goParent,
+      deleteReviewState.open,
+      openDeleteReview,
+      closeDeleteReview,
+      deleteReviewPrev,
+      deleteReviewNext,
+      deleteReviewMarkDelete,
     ]
   );
 
@@ -563,6 +753,29 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     selectedEntry,
     isPreviewOpen,
     setIsPreviewOpen,
+
+    deleteReview: {
+      open: deleteReviewState.open,
+      entry: deleteReviewEntry,
+      hasPrev: deleteReviewState.entries.length > 1,
+      hasNext: deleteReviewState.entries.length > 1,
+      onPrev: deleteReviewPrev,
+      onNext: deleteReviewNext,
+      onMarkDelete: deleteReviewMarkDelete,
+      onReset: deleteReviewReset,
+      onConfirm: deleteReviewConfirm,
+      onCancel: closeDeleteReview,
+      busy: deleteReviewState.busy,
+      entries: deleteReviewState.entries,
+      currentIndex: deleteReviewState.idx,
+      onSelectIndex: (idx: number) => {
+        setDeleteReviewState((s) => {
+          if (!s.open) return s;
+          if (idx < 0 || idx >= s.entries.length) return s;
+          return { ...s, idx };
+        });
+      },
+    },
 
     selectLeft: keyboard.selectLeft,
     selectRight: keyboard.selectRight,
