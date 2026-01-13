@@ -1,14 +1,28 @@
 // lib/path.ts
 
+function safeDecodeURIComponent(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** next/navigation の usePathname() の値 ("/a/b" or "/") を "a/b" or "." に変換 */
 export function pathnameToDir(pathname: string | null | undefined): string {
   const p = (pathname ?? "/").replace(/^\/+|\/+$/g, "");
-  return p.length ? p : ".";
+  if (!p.length) return ".";
+  return p
+    .split("/")
+    .filter((seg) => seg.length > 0)
+    .map((seg) => safeDecodeURIComponent(seg))
+    .join("/");
 }
 
 /** useParams<{path?: string[]}> の path を "a/b" or "." に変換 */
 export function paramsToDir(parts: string[] | undefined): string {
-  const p = (parts ?? []).join("/");
+  const decoded = (parts ?? []).map((seg) => safeDecodeURIComponent(seg));
+  const p = decoded.join("/");
   return p.length ? p : ".";
 }
 
