@@ -176,15 +176,6 @@ export function ViewerShell({ children }: { children: ReactNode }) {
           PATH: <code>{currentDir}</code>
         </div>
 
-        <button
-          className="sidebar-button"
-          onClick={() => {
-            nav.goParent();
-          }}
-        >
-          ↑ 親ディレクトリへ
-        </button>
-
         <DirectoryTree
           tree={tree}
           currentDir={currentDir}

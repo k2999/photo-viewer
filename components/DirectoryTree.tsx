@@ -116,7 +116,8 @@ export function DirectoryTree(props: Props) {
             <button
               type="button"
               className="tree-toggle"
-              onMouseDown={(e) => e.stopPropagation()}
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => toggleExpanded(p)}
               aria-label={expandedOpen ? "collapse" : "expand"}
             >
@@ -129,7 +130,8 @@ export function DirectoryTree(props: Props) {
           <button
             type="button"
             className="tree-label"
-            onMouseDown={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => onSelectDir(p)}
             title={p}
           >
@@ -140,7 +142,8 @@ export function DirectoryTree(props: Props) {
           <button
             type="button"
             className="tree-mark"
-            onMouseDown={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => onMarkDir(isMarked ? null : p)}
             aria-label={isMarked ? "unmark" : "mark as destination"}
             title={isMarked ? "移動先マーク解除" : "移動先にマーク"}
