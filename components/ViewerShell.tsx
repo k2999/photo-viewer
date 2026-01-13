@@ -51,7 +51,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    fetch(`/api/dir-tree?path=.&depth=3`)
+    fetch(`/api/dir-tree?path=.&depth=10`)
       .then((r) => r.json())
       .then((data) => setTree(data.tree ?? null))
       .catch(() => setTree(null));

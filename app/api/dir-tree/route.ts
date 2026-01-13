@@ -15,7 +15,7 @@ function nodeName(relPath: string) {
 }
 
 // 深掘りしすぎ防止（重くなるので）
-const DEFAULT_MAX_DEPTH = 3;
+const DEFAULT_MAX_DEPTH = 6;
 
 async function buildTree(
   absDir: string,
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     req.nextUrl.searchParams.get("depth") ?? DEFAULT_MAX_DEPTH
   );
   const depth = Number.isFinite(maxDepth)
-    ? Math.max(1, Math.min(10, maxDepth))
+    ? Math.max(1, Math.min(20, maxDepth))
     : DEFAULT_MAX_DEPTH;
 
   try {
