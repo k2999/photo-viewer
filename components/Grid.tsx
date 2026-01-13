@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useGridController } from "@/hooks/useGridController";
 import { DirectoryThumbnail } from "@/components/DirectoryThumbnail";
 import { EntryCard } from "@/components/EntryCard";
@@ -16,6 +17,14 @@ import { entryKeyOf, useViewer } from "@/components/ViewerContext";
 export function Grid() {
   const viewer = useViewer();
   const c = useGridController({ viewer });
+
+  // Shift+クリック範囲チェック用のアンカー（チェックボックス操作の最後の位置）
+  const lastCheckAnchorRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // ディレクトリ移動で entries が変わるのでアンカーをリセット
+    lastCheckAnchorRef.current = null;
+  }, [c.currentDir]);
 
   return (
     <>
@@ -112,10 +121,13 @@ export function Grid() {
                   const isShift = (ev.nativeEvent as MouseEvent).shiftKey;
 
                   if (isShift) {
-                    c.setRangeChecked(c.selectedIndex, idx, nextState);
+                    const anchor = lastCheckAnchorRef.current ?? idx;
+                    c.setRangeChecked(anchor, idx, nextState);
                   } else {
                     c.toggleCheck(key);
                   }
+
+                  lastCheckAnchorRef.current = idx;
                 }}
                 thumb={thumb}
               />
