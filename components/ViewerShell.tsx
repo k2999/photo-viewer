@@ -22,6 +22,45 @@ function findNodeByPath(node: TreeNode | null, path: string): TreeNode | null {
 export function ViewerShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [tree, setTree] = useState<TreeNode | null>(null);
+  const [isTreeCollapsed, setIsTreeCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("photoViewer:paneCollapsed:tree") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [isExifCollapsed, setIsExifCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("photoViewer:paneCollapsed:exif") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  // Pane collapsed state: persist
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "photoViewer:paneCollapsed:tree",
+        isTreeCollapsed ? "1" : "0"
+      );
+    } catch {
+      // ignore
+    }
+  }, [isTreeCollapsed]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "photoViewer:paneCollapsed:exif",
+        isExifCollapsed ? "1" : "0"
+      );
+    } catch {
+      // ignore
+    }
+  }, [isExifCollapsed]);
 
   const {
     selectedEntry,
@@ -164,40 +203,49 @@ export function ViewerShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-root" data-focus={focusTarget}>
       <aside
-        className="sidebar"
+        className="sidebar sidebar-left"
         data-pane="tree"
+        data-collapsed={isTreeCollapsed ? "true" : "false"}
         onMouseDown={() => setFocusTarget("tree")}
       >
-        <div className="sidebar-title">Directory</div>
-
-        <div className="sidebar-code">
-          ROOT: <code>{process.env.NEXT_PUBLIC_ROOT_LABEL ?? "ROOT_DIR"}</code>
-          <br />
-          PATH: <code>{currentDir}</code>
+        <div className="pane-header">
+          <button
+            type="button"
+            className="pane-toggle"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setIsTreeCollapsed((v) => !v)}
+            aria-label={isTreeCollapsed ? "Expand tree pane" : "Collapse tree pane"}
+            title={isTreeCollapsed ? "ツリーを開く" : "ツリーを折り畳む"}
+          >
+            {isTreeCollapsed ? "»" : "«"}
+          </button>
         </div>
 
-        <DirectoryTree
-          tree={tree}
-          currentDir={currentDir}
-          isFocused={focusTarget === "tree"}
-          markedDir={markedDir}
-          expanded={treeCtrl.expanded}
-          focusedPath={treeCtrl.focusedPath}
-          dragOverPath={treeCtrl.dragOverPath}
-          activeRef={treeCtrl.activeRef}
-          cursorRef={treeCtrl.cursorRef}
-          setFocusedPath={treeCtrl.setFocusedPath}
-          toggleExpanded={treeCtrl.toggleExpanded}
-          isInternalMoveDnD={treeCtrl.isInternalMoveDnD}
-          onRowDragEnter={treeCtrl.onRowDragEnter}
-          onRowDragOver={treeCtrl.onRowDragOver}
-          onRowDragLeave={treeCtrl.onRowDragLeave}
-          onRowDrop={treeCtrl.onRowDrop}
-          onMarkDir={(p) => setMarkedDir(p)}
-          onSelectDir={(p) => nav.pushDir(p)}
-        />
+        {!isTreeCollapsed && (
+          <>
 
-        <ExifPanel entry={selectedEntry} />
+            <DirectoryTree
+              tree={tree}
+              currentDir={currentDir}
+              isFocused={focusTarget === "tree"}
+              markedDir={markedDir}
+              expanded={treeCtrl.expanded}
+              focusedPath={treeCtrl.focusedPath}
+              dragOverPath={treeCtrl.dragOverPath}
+              activeRef={treeCtrl.activeRef}
+              cursorRef={treeCtrl.cursorRef}
+              setFocusedPath={treeCtrl.setFocusedPath}
+              toggleExpanded={treeCtrl.toggleExpanded}
+              isInternalMoveDnD={treeCtrl.isInternalMoveDnD}
+              onRowDragEnter={treeCtrl.onRowDragEnter}
+              onRowDragOver={treeCtrl.onRowDragOver}
+              onRowDragLeave={treeCtrl.onRowDragLeave}
+              onRowDrop={treeCtrl.onRowDrop}
+              onMarkDir={(p) => setMarkedDir(p)}
+              onSelectDir={(p) => nav.pushDir(p)}
+            />
+          </>
+        )}
       </aside>
 
       <main
@@ -213,6 +261,28 @@ export function ViewerShell({ children }: { children: ReactNode }) {
       >
         {children}
       </main>
+
+      <aside
+        className="sidebar sidebar-right"
+        data-pane="exif"
+        data-collapsed={isExifCollapsed ? "true" : "false"}
+        onMouseDown={() => setFocusTarget("grid")}
+      >
+        <div className="pane-header">
+          <button
+            type="button"
+            className="pane-toggle"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setIsExifCollapsed((v) => !v)}
+            aria-label={isExifCollapsed ? "Expand exif pane" : "Collapse exif pane"}
+            title={isExifCollapsed ? "EXIFを開く" : "EXIFを折り畳む"}
+          >
+            {isExifCollapsed ? "«" : "»"}
+          </button>
+        </div>
+
+        {!isExifCollapsed && <ExifPanel entry={selectedEntry} />}
+      </aside>
     </div>
   );
 }

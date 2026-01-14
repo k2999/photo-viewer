@@ -29,12 +29,12 @@ a {
 
 /* ===== Focus (Tree / Grid) ===== */
 .app-root[data-focus="tree"] .main,
-.app-root[data-focus="grid"] .sidebar {
+.app-root[data-focus="grid"] .sidebar[data-pane="tree"] {
   background-color: #eee;
 }
 
 /* フォーカス側に軽い強調（好みで調整可） */
-.app-root[data-focus="tree"] .sidebar,
+.app-root[data-focus="tree"] .sidebar[data-pane="tree"],
 .app-root[data-focus="grid"] .main {
   background-color: #fff;
 }
@@ -43,12 +43,73 @@ a {
 .sidebar {
   width: 260px;
   border-right: 1px solid #ddd;
-  padding: 8px;
   font-size: 13px;
   background: #fafafa;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pane-toggle {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  background: #fff;
+  cursor: pointer;
+}
+
+.pane-toggle:hover {
+  background: #f0f0f0;
+}
+
+.sidebar[data-collapsed="true"] {
+  width: 34px;
+  padding: 6px 4px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.sidebar[data-collapsed="true"] .pane-header {
+  justify-content: center;
+}
+
+.sidebar-right {
+  border-right: 0;
+  border-left: 1px solid #ddd;
+  padding: 0;
+  gap: 0;
+}
+
+.sidebar-left .pane-header {
+  justify-content: flex-end;
+}
+
+.sidebar-right .pane-header {
+  justify-content: flex-start;
+}
+
+.pane-header {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.sidebar-right[data-collapsed="true"] {
+  padding: 6px 4px;
+}
+
+.sidebar[data-collapsed="true"] .pane-header {
+  padding: 0;
+  border-bottom: 0;
 }
 
 .sidebar-title {
@@ -448,6 +509,11 @@ a {
   overflow: auto;
 }
 
+.sidebar-right .exif-panel {
+  border-top: 0;
+  flex: 1;
+}
+
 .exif-table {
   border-collapse: collapse;
 }
@@ -468,6 +534,7 @@ a {
   height: 100%;
   overflow: auto;
   font-size: 12px;
+  padding: 8px;
 }
 
 .tree-list,
