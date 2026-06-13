@@ -642,6 +642,28 @@ a {
   border-left: 1px solid rgba(0, 0, 0, 0.12);
 }
 
+/* Edit decoration button */
+.tree-edit {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  font-size: 11px;
+}
+
+.tree-row:hover .tree-edit {
+  opacity: 0.35;
+}
+
+.tree-edit:hover {
+  opacity: 0.8 !important;
+}
+
 /* Mark destination */
 .tree-mark {
   width: 22px;

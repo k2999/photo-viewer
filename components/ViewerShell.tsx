@@ -7,6 +7,7 @@ import { ExifPanel } from "@/components/ExifPanel";
 import { useViewer } from "@/components/ViewerContext";
 import { useDirectoryTreeController } from "@/hooks/useDirectoryTreeController";
 import { useViewerNavigator } from "@/hooks/useViewerNavigator";
+import { useFolderDecorations } from "@/hooks/useFolderDecorations";
 import { normalizeDir } from "@/lib/path";
 
 function findNodeByPath(node: TreeNode | null, path: string): TreeNode | null {
@@ -76,6 +77,7 @@ export function ViewerShell({ children }: { children: ReactNode }) {
   } = useViewer();
 
   const nav = useViewerNavigator();
+  const folderDecorations = useFolderDecorations();
 
   const treeCtrl = useDirectoryTreeController({
     tree,
@@ -243,6 +245,8 @@ export function ViewerShell({ children }: { children: ReactNode }) {
               onRowDrop={treeCtrl.onRowDrop}
               onMarkDir={(p) => setMarkedDir(p)}
               onSelectDir={(p) => nav.pushDir(p)}
+              getDecoration={folderDecorations.getDecoration}
+              onEditDecoration={folderDecorations.setDecoration}
             />
           </>
         )}

@@ -9,7 +9,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-const ROOT_DIR = requireEnv("ROOT_DIR");
+export const ROOT_DIR = requireEnv("ROOT_DIR");
 
 export type FsEntry = {
   name: string;

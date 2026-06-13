@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { usePathname } from "next/navigation";
 import { pathnameToDir } from "@/lib/path";
+import type { FolderDecoration } from "@/lib/folderDecorationsTypes";
 
 export type Entry = {
   name: string;
@@ -65,6 +66,12 @@ export type ViewerContextValue = {
   deselectAll: () => void;
   cardWidth: CardWidthPx;
   setCardWidth: (px: CardWidthPx) => void;
+  getFolderDecoration: (path: string) => FolderDecoration | null;
+  setFolderDecoration: (path: string, decoration: FolderDecoration | null) => Promise<boolean>;
+  initFolderDecorations: (
+    decorations: Record<string, FolderDecoration>,
+    setFn: (path: string, deco: FolderDecoration | null) => Promise<boolean>
+  ) => void;
 };
 
 export type GridControllerDeps = Pick<
@@ -101,6 +108,8 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const listedKeysRef = useRef<EntryKey[]>([]);
   const prevDirRef = useRef<string>(currentDir);
   const gridKeyboardControllerRef = useRef<GridKeyboardController | null>(null);
+  const folderDecorationsRef = useRef<Record<string, FolderDecoration>>({});
+  const setFolderDecorationFnRef = useRef<((path: string, deco: FolderDecoration | null) => Promise<boolean>) | null>(null);
 
   useEffect(() => {
     try {
@@ -207,6 +216,30 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     gridKeyboardControllerRef.current = c;
   }, []);
 
+  const getFolderDecoration = useCallback((path: string): FolderDecoration | null => {
+    return folderDecorationsRef.current[path] ?? null;
+  }, []);
+
+  const setFolderDecoration = useCallback(
+    async (path: string, decoration: FolderDecoration | null): Promise<boolean> => {
+      const fn = setFolderDecorationFnRef.current;
+      if (!fn) return false;
+      return await fn(path, decoration);
+    },
+    []
+  );
+
+  const initFolderDecorations = useCallback(
+    (
+      decorations: Record<string, FolderDecoration>,
+      setFn: (path: string, deco: FolderDecoration | null) => Promise<boolean>
+    ) => {
+      folderDecorationsRef.current = decorations;
+      setFolderDecorationFnRef.current = setFn;
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       selectedEntry,
@@ -232,6 +265,9 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       deselectAll,
       cardWidth,
       setCardWidth,
+      getFolderDecoration,
+      setFolderDecoration,
+      initFolderDecorations,
     }),
     [
       selectedEntry,
@@ -254,6 +290,9 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       setCardWidth,
       gridKeyboardControllerRef,
       setGridKeyboardController,
+      getFolderDecoration,
+      setFolderDecoration,
+      initFolderDecorations,
     ]
   );
 
