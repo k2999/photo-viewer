@@ -1,18 +1,20 @@
 // app/api/thumb/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import { spawn } from "child_process";
-import { resolveSafePath } from "../../../lib/fs";
+import { ROOT_DIR, resolveSafePath } from "../../../lib/fs";
 
 export const runtime = "nodejs";
 
 const IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic"];
 const VIDEO_EXTS = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
 
-const THUMB_MAX_WIDTH = 320;
-const THUMB_MAX_HEIGHT = 320;
+const THUMB_MAX_WIDTH = 500;
+const THUMB_MAX_HEIGHT = 500;
+const THUMB_CACHE_DIR = path.join(ROOT_DIR, ".photo-viewer", "thumb-cache");
 
 /**
  * ffmpeg を使って動画から 1フレーム JPEG を生成
@@ -78,34 +80,83 @@ function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
   return u8.buffer; // これは必ず ArrayBuffer
 }
 
+function cacheKeyFor(args: {
+  relativePath: string;
+  mtimeMs: number;
+  size: number;
+  width: number;
+  height: number;
+}) {
+  return crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({
+        v: 1,
+        path: args.relativePath,
+        mtimeMs: Math.trunc(args.mtimeMs),
+        size: args.size,
+        width: args.width,
+        height: args.height,
+      })
+    )
+    .digest("hex");
+}
+
+async function readCachedThumbnail(cachePath: string) {
+  try {
+    return await fs.readFile(cachePath);
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedThumbnail(cachePath: string, buf: Buffer) {
+  await fs.mkdir(path.dirname(cachePath), { recursive: true });
+  const tmp = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmp, buf);
+  await fs.rename(tmp, cachePath);
+}
+
+function jpegResponse(buf: Buffer, cacheStatus: "HIT" | "MISS") {
+  return new NextResponse(bufferToArrayBuffer(buf), {
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Thumb-Cache": cacheStatus,
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
   const relativePath = req.nextUrl.searchParams.get("path") ?? "";
 
   try {
-    const { abs } = resolveSafePath(relativePath);
+    const { abs, relative } = resolveSafePath(relativePath);
     const ext = path.extname(abs).toLowerCase();
+    const stat = await fs.stat(abs);
+    const cacheKey = cacheKeyFor({
+      relativePath: relative,
+      mtimeMs: stat.mtimeMs,
+      size: stat.size,
+      width: THUMB_MAX_WIDTH,
+      height: THUMB_MAX_HEIGHT,
+    });
+    const cachePath = path.join(THUMB_CACHE_DIR, `${cacheKey}.jpg`);
+    const cached = await readCachedThumbnail(cachePath);
+    if (cached) return jpegResponse(cached, "HIT");
 
     // 画像サムネイル
     if (IMAGE_EXTS.includes(ext)) {
       const buf = await generateImageThumbnail(abs);
-      return new NextResponse(bufferToArrayBuffer(buf), {
-        headers: {
-          "Content-Type": "image/jpeg",
-          // サムネイルはある程度キャッシュしてもOKなら public に
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
+      await writeCachedThumbnail(cachePath, buf);
+      return jpegResponse(buf, "MISS");
     }
 
     // 動画サムネイル
     if (VIDEO_EXTS.includes(ext)) {
       const buf = await generateVideoThumbnail(abs);
-      return new NextResponse(bufferToArrayBuffer(buf), {
-        headers: {
-          "Content-Type": "image/jpeg",
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
+      await writeCachedThumbnail(cachePath, buf);
+      return jpegResponse(buf, "MISS");
     }
 
     // それ以外は 400

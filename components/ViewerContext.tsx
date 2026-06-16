@@ -8,6 +8,7 @@ import React, {
   useCallback,
   useRef,
   useEffect,
+  type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
 import { pathnameToDir } from "@/lib/path";
@@ -20,6 +21,16 @@ export type Entry = {
 };
 export type EntryKey = string;
 export type CardWidthPx = number;
+export type ViewMode = "grid" | "timeline" | "calendar";
+export const TIMELINE_SLOT_MINUTES_OPTIONS = [60, 30, 20, 15, 12, 10, 6, 5, 4, 3, 2, 1] as const;
+export type TimelineSlotMinutes = (typeof TIMELINE_SLOT_MINUTES_OPTIONS)[number];
+export type CalendarWeekStart = "sunday" | "monday";
+export type FocusTarget = "tree" | "grid" | "secondaryGrid";
+
+export type PrimaryPaneController = {
+  moveItemsToCurrentDir: (items: string[]) => Promise<string[] | null | undefined>;
+  reload: () => void;
+};
 
 export type GridKeyboardController = {
   selectLeft: () => void;
@@ -46,14 +57,24 @@ export type ViewerContextValue = {
   selectedEntry: Entry | null;
   setSelectedEntry: (e: Entry | null) => void;
   currentDir: string;
-  focusTarget: "tree" | "grid";
-  setFocusTarget: (t: "tree" | "grid") => void;
+  focusTarget: FocusTarget;
+  setFocusTarget: (t: FocusTarget) => void;
   gridKeyboardControllerRef: React.MutableRefObject<GridKeyboardController | null>;
   setGridKeyboardController: (c: GridKeyboardController | null) => void;
-  markedDir: string | null;
-  setMarkedDir: (dir: string | null) => void;
-  moveToDir: ((destDir: string, items: string[]) => void) | null;
-  setMoveToDir: (fn: ((destDir: string, items: string[]) => void) | null) => void;
+  secondaryGridKeyboardControllerRef: React.MutableRefObject<GridKeyboardController | null>;
+  setSecondaryGridKeyboardController: (c: GridKeyboardController | null) => void;
+  secondaryDir: string | null;
+  isSecondaryPaneOpen: boolean;
+  openSecondaryPane: (dir: string) => void;
+  closeSecondaryPane: () => void;
+  setSecondaryDir: (dir: string) => void;
+  secondaryReloadSignal: number;
+  bumpSecondaryReloadSignal: () => void;
+  setPrimaryPaneController: (controller: PrimaryPaneController | null) => void;
+  moveItemsToPrimaryDir: (items: string[]) => Promise<string[] | null | undefined>;
+  reloadPrimaryPane: () => void;
+  setPrimaryToolbar: (toolbar: ReactNode | null) => void;
+  registerPrimaryToolbarHost: (setter: ((toolbar: ReactNode | null) => void) | null) => void;
   navGen: number;
   bumpNavGen: () => void;
   isNavigating: boolean;
@@ -66,6 +87,16 @@ export type ViewerContextValue = {
   deselectAll: () => void;
   cardWidth: CardWidthPx;
   setCardWidth: (px: CardWidthPx) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  timelineTrimEmptyHours: boolean;
+  setTimelineTrimEmptyHours: (trim: boolean) => void;
+  timelineCollapseEmptyHourGaps: boolean;
+  setTimelineCollapseEmptyHourGaps: (collapse: boolean) => void;
+  timelineSlotMinutes: TimelineSlotMinutes;
+  setTimelineSlotMinutes: (minutes: TimelineSlotMinutes) => void;
+  calendarWeekStart: CalendarWeekStart;
+  setCalendarWeekStart: (weekStart: CalendarWeekStart) => void;
   getFolderDecoration: (path: string) => FolderDecoration | null;
   setFolderDecoration: (path: string, decoration: FolderDecoration | null) => Promise<boolean>;
   initFolderDecorations: (
@@ -86,9 +117,17 @@ export type GridControllerDeps = Pick<
   | "deselectAll"
   | "cardWidth"
   | "setCardWidth"
-  | "setMoveToDir"
+  | "viewMode"
+  | "setViewMode"
+  | "timelineTrimEmptyHours"
+  | "setTimelineTrimEmptyHours"
+  | "timelineCollapseEmptyHourGaps"
+  | "setTimelineCollapseEmptyHourGaps"
+  | "timelineSlotMinutes"
+  | "setTimelineSlotMinutes"
+  | "calendarWeekStart"
+  | "setCalendarWeekStart"
   | "setGridKeyboardController"
-  | "markedDir"
 >;
 
 const ViewerContext = createContext<ViewerContextValue | null>(null);
@@ -98,16 +137,25 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   const currentDir = useMemo(() => pathnameToDir(pathname), [pathname]);
 
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
-  const [focusTarget, setFocusTarget] = useState<"tree" | "grid">("grid");
-  const [markedDir, setMarkedDirState] = useState<string | null>(null);
-  const [moveToDir, _setMoveToDir] = useState<((destDir: string, items: string[]) => void) | null>(null);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget>("grid");
+  const [secondaryDir, setSecondaryDirState] = useState<string | null>(null);
+  const [isSecondaryPaneOpen, setIsSecondaryPaneOpen] = useState(false);
+  const [secondaryReloadSignal, setSecondaryReloadSignal] = useState(0);
   const [navGen, setNavGen] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
   const [checked, setChecked] = useState<Set<EntryKey>>(() => new Set());
   const [cardWidth, setCardWidthState] = useState<CardWidthPx>(220);
+  const [viewMode, setViewModeState] = useState<ViewMode>("grid");
+  const [timelineTrimEmptyHours, setTimelineTrimEmptyHoursState] = useState(false);
+  const [timelineCollapseEmptyHourGaps, setTimelineCollapseEmptyHourGapsState] = useState(false);
+  const [timelineSlotMinutes, setTimelineSlotMinutesState] = useState<TimelineSlotMinutes>(60);
+  const [calendarWeekStart, setCalendarWeekStartState] = useState<CalendarWeekStart>("sunday");
   const listedKeysRef = useRef<EntryKey[]>([]);
   const prevDirRef = useRef<string>(currentDir);
   const gridKeyboardControllerRef = useRef<GridKeyboardController | null>(null);
+  const secondaryGridKeyboardControllerRef = useRef<GridKeyboardController | null>(null);
+  const primaryPaneControllerRef = useRef<PrimaryPaneController | null>(null);
+  const primaryToolbarHostRef = useRef<((toolbar: ReactNode | null) => void) | null>(null);
   const folderDecorationsRef = useRef<Record<string, FolderDecoration>>({});
   const setFolderDecorationFnRef = useRef<((path: string, deco: FolderDecoration | null) => Promise<boolean>) | null>(null);
 
@@ -121,13 +169,56 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // markedDir: restore
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem("photoViewer:markedDir");
-      if (raw && typeof raw === "string") {
-        setMarkedDirState(raw);
+      const raw = window.localStorage.getItem("photoViewer:viewMode");
+      if (raw === "grid" || raw === "timeline" || raw === "calendar") setViewModeState(raw);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const oldCollapse = window.localStorage.getItem("photoViewer:timelineCollapseEmptyHours") === "1";
+      setTimelineTrimEmptyHoursState(
+        oldCollapse || window.localStorage.getItem("photoViewer:timelineTrimEmptyHours") === "1"
+      );
+      setTimelineCollapseEmptyHourGapsState(
+        oldCollapse || window.localStorage.getItem("photoViewer:timelineCollapseEmptyHourGaps") === "1"
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = Number(window.localStorage.getItem("photoViewer:timelineSlotMinutes"));
+      if (TIMELINE_SLOT_MINUTES_OPTIONS.includes(raw as TimelineSlotMinutes)) {
+        setTimelineSlotMinutesState(raw as TimelineSlotMinutes);
       }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("photoViewer:calendarWeekStart");
+      if (raw === "sunday" || raw === "monday") setCalendarWeekStartState(raw);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("photoViewer:secondaryDir");
+      if (raw && typeof raw === "string") {
+        setSecondaryDirState(raw);
+      }
+      setIsSecondaryPaneOpen(window.localStorage.getItem("photoViewer:secondaryPaneOpen") === "1");
     } catch {
       // ignore
     }
@@ -182,6 +273,57 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setViewMode = useCallback((mode: ViewMode) => {
+    setViewModeState(mode);
+    try {
+      window.localStorage.setItem("photoViewer:viewMode", mode);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setTimelineTrimEmptyHours = useCallback((trim: boolean) => {
+    setTimelineTrimEmptyHoursState(trim);
+    try {
+      window.localStorage.setItem(
+        "photoViewer:timelineTrimEmptyHours",
+        trim ? "1" : "0"
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setTimelineCollapseEmptyHourGaps = useCallback((collapse: boolean) => {
+    setTimelineCollapseEmptyHourGapsState(collapse);
+    try {
+      window.localStorage.setItem(
+        "photoViewer:timelineCollapseEmptyHourGaps",
+        collapse ? "1" : "0"
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setTimelineSlotMinutes = useCallback((minutes: TimelineSlotMinutes) => {
+    setTimelineSlotMinutesState(minutes);
+    try {
+      window.localStorage.setItem("photoViewer:timelineSlotMinutes", String(minutes));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setCalendarWeekStart = useCallback((weekStart: CalendarWeekStart) => {
+    setCalendarWeekStartState(weekStart);
+    try {
+      window.localStorage.setItem("photoViewer:calendarWeekStart", weekStart);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const deselectAll = useCallback(() => {
     const keys = listedKeysRef.current;
     setChecked((prev) => {
@@ -191,29 +333,71 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setMarkedDir = useCallback((dir: string | null) => {
-    setMarkedDirState(dir);
+  const setSecondaryDir = useCallback((dir: string) => {
+    setSecondaryDirState(dir);
     try {
-      if (!dir) window.localStorage.removeItem("photoViewer:markedDir");
-      else window.localStorage.setItem("photoViewer:markedDir", dir);
+      window.localStorage.setItem("photoViewer:secondaryDir", dir);
     } catch {
       // ignore
     }
   }, []);
 
-  const setMoveToDir = useCallback(
-    (fn: ((destDir: string, items: string[]) => void) | null) => {
-      if (fn == null) {
-        _setMoveToDir(null);
-      } else {
-        _setMoveToDir(() => fn);
-      }
+  const openSecondaryPane = useCallback((dir: string) => {
+    setSecondaryDir(dir);
+    setIsSecondaryPaneOpen(true);
+    setFocusTarget("secondaryGrid");
+    try {
+      window.localStorage.setItem("photoViewer:secondaryPaneOpen", "1");
+    } catch {
+      // ignore
+    }
+  }, [setSecondaryDir]);
+
+  const closeSecondaryPane = useCallback(() => {
+    setIsSecondaryPaneOpen(false);
+    setFocusTarget((target) => (target === "secondaryGrid" ? "grid" : target));
+    try {
+      window.localStorage.setItem("photoViewer:secondaryPaneOpen", "0");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const bumpSecondaryReloadSignal = useCallback(() => {
+    setSecondaryReloadSignal((n) => n + 1);
+  }, []);
+
+  const setPrimaryPaneController = useCallback((controller: PrimaryPaneController | null) => {
+    primaryPaneControllerRef.current = controller;
+  }, []);
+
+  const moveItemsToPrimaryDir = useCallback((items: string[]) => {
+    return primaryPaneControllerRef.current?.moveItemsToCurrentDir(items) ?? Promise.resolve([]);
+  }, []);
+
+  const reloadPrimaryPane = useCallback(() => {
+    primaryPaneControllerRef.current?.reload();
+  }, []);
+
+  const setPrimaryToolbar = useCallback((toolbar: ReactNode | null) => {
+    primaryToolbarHostRef.current?.(toolbar);
+  }, []);
+
+  const registerPrimaryToolbarHost = useCallback(
+    (setter: ((toolbar: ReactNode | null) => void) | null) => {
+      primaryToolbarHostRef.current = setter;
+      if (!setter) return;
+      setter(null);
     },
     []
   );
 
   const setGridKeyboardController = useCallback((c: GridKeyboardController | null) => {
     gridKeyboardControllerRef.current = c;
+  }, []);
+
+  const setSecondaryGridKeyboardController = useCallback((c: GridKeyboardController | null) => {
+    secondaryGridKeyboardControllerRef.current = c;
   }, []);
 
   const getFolderDecoration = useCallback((path: string): FolderDecoration | null => {
@@ -249,10 +433,20 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       setFocusTarget,
       gridKeyboardControllerRef,
       setGridKeyboardController,
-      markedDir,
-      setMarkedDir,
-      moveToDir,
-      setMoveToDir,
+      secondaryGridKeyboardControllerRef,
+      setSecondaryGridKeyboardController,
+      secondaryDir,
+      isSecondaryPaneOpen,
+      openSecondaryPane,
+      closeSecondaryPane,
+      setSecondaryDir,
+      secondaryReloadSignal,
+      bumpSecondaryReloadSignal,
+      setPrimaryPaneController,
+      moveItemsToPrimaryDir,
+      reloadPrimaryPane,
+      setPrimaryToolbar,
+      registerPrimaryToolbarHost,
       navGen,
       bumpNavGen,
       isNavigating,
@@ -265,6 +459,16 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       deselectAll,
       cardWidth,
       setCardWidth,
+      viewMode,
+      setViewMode,
+      timelineTrimEmptyHours,
+      setTimelineTrimEmptyHours,
+      timelineCollapseEmptyHourGaps,
+      setTimelineCollapseEmptyHourGaps,
+      timelineSlotMinutes,
+      setTimelineSlotMinutes,
+      calendarWeekStart,
+      setCalendarWeekStart,
       getFolderDecoration,
       setFolderDecoration,
       initFolderDecorations,
@@ -273,10 +477,18 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       selectedEntry,
       currentDir,
       focusTarget,
-      markedDir,
-      setMarkedDir,
-      moveToDir,
-      setMoveToDir,
+      secondaryDir,
+      isSecondaryPaneOpen,
+      openSecondaryPane,
+      closeSecondaryPane,
+      setSecondaryDir,
+      secondaryReloadSignal,
+      bumpSecondaryReloadSignal,
+      setPrimaryPaneController,
+      moveItemsToPrimaryDir,
+      reloadPrimaryPane,
+      setPrimaryToolbar,
+      registerPrimaryToolbarHost,
       navGen,
       bumpNavGen,
       isNavigating,
@@ -288,8 +500,20 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
       deselectAll,
       cardWidth,
       setCardWidth,
+      viewMode,
+      setViewMode,
+      timelineTrimEmptyHours,
+      setTimelineTrimEmptyHours,
+      timelineCollapseEmptyHourGaps,
+      setTimelineCollapseEmptyHourGaps,
+      timelineSlotMinutes,
+      setTimelineSlotMinutes,
+      calendarWeekStart,
+      setCalendarWeekStart,
       gridKeyboardControllerRef,
       setGridKeyboardController,
+      secondaryGridKeyboardControllerRef,
+      setSecondaryGridKeyboardController,
       getFolderDecoration,
       setFolderDecoration,
       initFolderDecorations,

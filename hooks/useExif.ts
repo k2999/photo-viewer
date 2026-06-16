@@ -11,6 +11,7 @@ function isAbortError(e: any): boolean {
 
 // ---- Shared (module-level) cache / queue ----
 export type ExifPayload = { exif?: any; error?: string };
+export type ExifRefreshResult = ExifPayload & { path: string };
 
 const cache = new Map<string, ExifPayload>(); // relativePath -> payload
 const inflight = new Map<string, Promise<ExifPayload>>(); // relativePath -> promise
@@ -25,53 +26,89 @@ type QueueItem = {
 const queue: QueueItem[] = [];
 
 let active = 0;
-const MAX_CONCURRENCY = 5;
+const MAX_CONCURRENCY = 2;
+const MAX_BATCH_SIZE = 80;
+const BATCH_DELAY_MS = 25;
 
 let generation = 0;
 const controllers = new Set<AbortController>();
+let queueTimer: number | null = null;
 
 function runQueue() {
+  if (queueTimer) {
+    window.clearTimeout(queueTimer);
+    queueTimer = null;
+  }
+
   while (active < MAX_CONCURRENCY && queue.length > 0) {
-    const item = queue.shift()!;
+    const batch: QueueItem[] = [];
+    while (batch.length < MAX_BATCH_SIZE && queue.length > 0) {
+      const item = queue.shift()!;
 
-    // 既に世代が変わっていれば処理しない（移動後に古いdirのEXIFが走るのを防ぐ）
-    if (item.gen !== generation) {
-      try {
-        item.ctrl.abort();
-      } catch {}
-      item.reject(new DOMException("Aborted", "AbortError"));
-      continue;
+      // 既に世代が変わっていれば処理しない（移動後に古いdirのEXIFが走るのを防ぐ）
+      if (item.gen !== generation) {
+        try {
+          item.ctrl.abort();
+        } catch {}
+        item.reject(new DOMException("Aborted", "AbortError"));
+        continue;
+      }
+
+      batch.push(item);
     }
+    if (batch.length === 0) continue;
 
+    const ctrl = new AbortController();
+    controllers.add(ctrl);
     active++;
-    fetchExifOnce(item.path, item.ctrl.signal)
-      .then((payload) => {
-        cache.set(item.path, payload);
-        item.resolve(payload);
+    fetchExifBatchOnce(batch.map((item) => item.path), ctrl.signal)
+      .then((payloads) => {
+        for (const item of batch) {
+          const payload = payloads.get(item.path) ?? { exif: undefined, error: "exif unavailable" };
+          cache.set(item.path, payload);
+          item.resolve(payload);
+        }
       })
       .catch((e) => {
-        item.reject(e);
+        for (const item of batch) item.reject(e);
       })
       .finally(() => {
-        controllers.delete(item.ctrl);
+        controllers.delete(ctrl);
         active--;
         runQueue();
       });
   }
 }
 
-async function fetchExifOnce(path: string, signal: AbortSignal): Promise<ExifPayload> {
+function scheduleQueue() {
+  if (queueTimer) return;
+  queueTimer = window.setTimeout(runQueue, BATCH_DELAY_MS);
+}
+
+async function fetchExifBatchOnce(paths: string[], signal: AbortSignal): Promise<Map<string, ExifPayload>> {
   try {
-    const r = await fetch(`/api/exif?path=${encodeURIComponent(path)}`, {
+    const r = await fetch("/api/exif/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       cache: "no-store",
       signal,
+      body: JSON.stringify({ paths }),
     });
-    if (!r.ok) return { exif: undefined, error: `HTTP ${r.status}` };
+    const out = new Map<string, ExifPayload>();
+    if (!r.ok) {
+      for (const path of paths) out.set(path, { exif: undefined, error: `HTTP ${r.status}` });
+      return out;
+    }
     const data = await r.json();
-    return { exif: data?.exif };
+    for (const result of data?.results ?? []) {
+      out.set(result.path, { exif: result.exif, error: result.error });
+    }
+    return out;
   } catch (e: any) {
     if (isAbortError(e)) throw e;
-    return { exif: undefined, error: e?.message ?? "fetch failed" };
+    const out = new Map<string, ExifPayload>();
+    for (const path of paths) out.set(path, { exif: undefined, error: e?.message ?? "fetch failed" });
+    return out;
   }
 }
 
@@ -86,9 +123,8 @@ async function doFetchImpl(path: string): Promise<ExifPayload> {
 
   const p = new Promise<ExifPayload>((resolve, reject) => {
     const ctrl = new AbortController();
-    controllers.add(ctrl);
     queue.push({ path, gen: generation, ctrl, resolve, reject });
-    runQueue();
+    scheduleQueue();
   })
     .finally(() => {
       inflight.delete(path);
@@ -111,6 +147,28 @@ export function getCachedExif(path: string): ExifPayload | undefined {
   return cache.get(path);
 }
 
+export async function refreshExifCache(paths: string[], recursive = true): Promise<ExifRefreshResult[]> {
+  const uniquePaths = Array.from(new Set(paths)).filter(Boolean);
+  if (uniquePaths.length === 0) return [];
+
+  const r = await fetch("/api/exif/batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ paths: uniquePaths, force: true, recursive }),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+  const data = await r.json();
+  const payloads: ExifRefreshResult[] = [];
+  for (const result of data?.results ?? []) {
+    const payload = { path: result.path, exif: result.exif, error: result.error };
+    cache.set(result.path, payload);
+    payloads.push(payload);
+  }
+  return payloads;
+}
+
 /**
  * フォルダ移動など「いま走っている / 待っている EXIF 取得」を全部キャンセルしたいときに呼ぶ。
  * - 進行中 fetch を abort
@@ -119,6 +177,11 @@ export function getCachedExif(path: string): ExifPayload | undefined {
  */
 export function abortAllExifRequests() {
   generation++;
+
+  if (queueTimer) {
+    window.clearTimeout(queueTimer);
+    queueTimer = null;
+  }
 
   // queue 待ちを全 reject
   while (queue.length > 0) {

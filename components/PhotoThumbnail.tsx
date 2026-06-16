@@ -8,9 +8,16 @@ type Props = {
   alt: string;
   className?: string;
   rootMargin?: string;
+  resetOnNavigation?: boolean;
 };
 
-export function PhotoThumbnail({ src, alt, className, rootMargin = "600px" }: Props) {
+export function PhotoThumbnail({
+  src,
+  alt,
+  className,
+  rootMargin = "600px",
+  resetOnNavigation = true,
+}: Props) {
   const elRef = useRef<HTMLElement | null>(null);
   const [enabled, setEnabled] = useState(false);
 
@@ -47,7 +54,7 @@ export function PhotoThumbnail({ src, alt, className, rootMargin = "600px" }: Pr
       style={{ display: "block", width: "100%", height: "100%" }}
     >
       {enabled ? (
-        <Image src={actualSrc} alt={alt} />
+        <Image src={actualSrc} alt={alt} resetOnNavigation={resetOnNavigation} />
       ) : (
         <span style={{ display: "block", width: "100%", height: "100%" }} />
       )}

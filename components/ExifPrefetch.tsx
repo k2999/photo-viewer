@@ -2,42 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { prefetchExif, useExif } from "@/hooks/useExif";
-
-/**
- * exiftool の日時文字列例:
- * - "2024:08:01 12:34:56"
- * - "2024:08:01 12:34:56+09:00"
- * - "2024-08-01 12:34:56"
- */
-function normalizeExifDateTime(v: unknown): string | null {
-  if (v == null) return null;
-  const s = String(v).trim();
-  if (!s) return null;
-
-  const m = s.match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
-  if (!m) return null;
-
-  const [, Y, M, D, h, mi, sec] = m;
-  return `${Y}-${M}-${D}T${h}:${mi}:${sec}`;
-}
-
-function pickDateKey(exif: any): string | null {
-  const candidates = [
-    exif?.DateTimeOriginal,
-    exif?.CreateDate,
-    exif?.CreationDate,
-    exif?.MediaCreateDate,
-    exif?.TrackCreateDate,
-    exif?.ModifyDate,
-    exif?.FileModifyDate,
-  ];
-
-  for (const c of candidates) {
-    const k = normalizeExifDateTime(c);
-    if (k) return k;
-  }
-  return null;
-}
+import { pickExifDateKey } from "@/lib/exifDateKey";
 
 /**
  * 可視になったら EXIF を prefetch してキャッシュを温める。
@@ -91,7 +56,7 @@ export function ExifPrefetch({
     if (loading) return;
     if (exif === undefined && error === undefined) return;
 
-    const key = exif ? pickDateKey(exif) : null;
+    const key = exif ? pickExifDateKey(exif) : null;
     onDateKeyResolved?.(key);
     setDoneDateKey(true);
   }, [needDateKey, enabled, doneDateKey, loading, exif, error, onDateKeyResolved]);

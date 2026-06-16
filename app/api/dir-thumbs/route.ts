@@ -4,6 +4,8 @@ import path from "path";
 import { resolveSafePath } from "@/lib/fs";
 
 const IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".heic", ".webp"];
+const VIDEO_EXTS = [".mp4", ".mov", ".m4v", ".avi", ".mkv"];
+const THUMB_EXTS = new Set([...IMAGE_EXTS, ...VIDEO_EXTS]);
 
 export async function GET(req: NextRequest) {
   const rel = req.nextUrl.searchParams.get("path") ?? ".";
@@ -11,11 +13,11 @@ export async function GET(req: NextRequest) {
 
   const entries = await fs.readdir(abs, { withFileTypes: true });
 
-  // ① 画像ファイルだけ
-  const images = entries
+  // ① サムネイル化できる画像/動画ファイルだけ
+  const thumbs = entries
     .filter(
       (e) =>
-        e.isFile() && IMAGE_EXTS.includes(path.extname(e.name).toLowerCase())
+        e.isFile() && THUMB_EXTS.has(path.extname(e.name).toLowerCase())
     )
     // ② ファイル名順（ここがポイント）
     .map((e) => e.name)
@@ -26,6 +28,6 @@ export async function GET(req: NextRequest) {
     .map((name) => path.posix.join(relative, name));
 
   return NextResponse.json({
-    thumbs: images,
+    thumbs,
   });
 }

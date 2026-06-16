@@ -7,6 +7,7 @@ type Props = {
   src: string; // /api/thumb?... など
   alt: string;
   className?: string;
+  resetOnNavigation?: boolean;
 };
 
 // 同時実行制限（サムネが遷移を詰まらせないためのQoS）
@@ -63,8 +64,10 @@ function release() {
   pump();
 }
 
-export function Image({ src, alt, className }: Props) {
+export function Image({ src, alt, className, resetOnNavigation = true }: Props) {
   const { navGen, isNavigating } = useViewer();
+  const effectiveNavGen = resetOnNavigation ? navGen : 0;
+  const effectiveIsNavigating = resetOnNavigation ? isNavigating : false;
 
   const imgRef = useRef<HTMLImageElement | null>(null);
   const ctrlRef = useRef<AbortController | null>(null);
@@ -82,6 +85,8 @@ export function Image({ src, alt, className }: Props) {
 
   // navGen 変更 or unmount で「確実にキャンセル」
   useEffect(() => {
+    if (!resetOnNavigation) return;
+
     // in-flight を止める
     ctrlRef.current?.abort();
     ctrlRef.current = null;
@@ -92,12 +97,12 @@ export function Image({ src, alt, className }: Props) {
     setLoaded(false);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navGen]);
+  }, [effectiveNavGen, resetOnNavigation]);
 
   // src が変わったら取得（navGen が変わると上の effect が先に走る）
   useEffect(() => {
     if (!src) return;
-    if (isNavigating) return;
+    if (effectiveIsNavigating) return;
 
     let alive = true;
 
@@ -151,7 +156,7 @@ export function Image({ src, alt, className }: Props) {
       // unmount 時は下で revoke する
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, navGen, isNavigating]);
+  }, [src, effectiveNavGen, effectiveIsNavigating]);
 
   // unmount 時に確実に解放
   useEffect(() => {

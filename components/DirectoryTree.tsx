@@ -8,7 +8,6 @@ import {
   faChevronRight,
   faFolder,
   faFolderOpen,
-  faBookmark,
   faPencil,
 } from "@fortawesome/free-solid-svg-icons";
 import {
@@ -47,7 +46,7 @@ type Props = {
   tree: TreeNode | null;
   currentDir: string;
   isFocused: boolean;
-  markedDir: string | null;
+  secondaryDir: string | null;
 
   expanded: Set<string>;
   focusedPath: string;
@@ -66,7 +65,7 @@ type Props = {
   onRowDrop: (path: string, dt: DataTransfer) => void;
 
   onSelectDir: (path: string) => void;
-  onMarkDir: (path: string | null) => void;
+  onOpenSecondaryDir: (path: string) => void;
   getDecoration?: (path: string) => FolderDecoration | null;
   onEditDecoration?: (path: string, decoration: FolderDecoration | null) => Promise<boolean>;
 };
@@ -95,7 +94,7 @@ export function DirectoryTree(props: Props) {
     tree,
     currentDir,
     isFocused,
-    markedDir,
+    secondaryDir,
     expanded,
     focusedPath,
     dragOverPath,
@@ -109,7 +108,7 @@ export function DirectoryTree(props: Props) {
     onRowDragLeave,
     onRowDrop,
     onSelectDir,
-    onMarkDir,
+    onOpenSecondaryDir,
     getDecoration,
     onEditDecoration,
   } = props;
@@ -127,7 +126,7 @@ export function DirectoryTree(props: Props) {
     const open = expandable ? expandedOpen : active;
     const isAncestor = ancestorPaths.includes(p);
     const isCursor = normalizeDir(focusedPath) === p;
-    const isMarked = !!markedDir && normalizeDir(markedDir) === p;
+    const isSecondary = !!secondaryDir && normalizeDir(secondaryDir) === p;
     const decoration = getDecoration?.(p);
     const colorToUse = decoration?.color ?? undefined;
     const iconToUse = decoration?.icon
@@ -145,7 +144,7 @@ export function DirectoryTree(props: Props) {
             active ? "is-active" : "",
             isAncestor ? "is-ancestor" : "",
             isCursor ? "is-cursor" : "",
-            isMarked ? "is-marked" : "",
+            isSecondary ? "is-secondary" : "",
             dragOverPath === p ? "is-dropover" : "",
           ]
             .filter(Boolean)
@@ -189,7 +188,10 @@ export function DirectoryTree(props: Props) {
             className="tree-label"
             tabIndex={-1}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onSelectDir(p)}
+            onClick={(e) => {
+              if (e.shiftKey) onOpenSecondaryDir(p);
+              else onSelectDir(p);
+            }}
             title={p}
           >
             <FontAwesomeIcon
@@ -221,14 +223,14 @@ export function DirectoryTree(props: Props) {
 
           <button
             type="button"
-            className="tree-mark"
+            className="tree-secondary"
             tabIndex={-1}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onMarkDir(isMarked ? null : p)}
-            aria-label={isMarked ? "unmark" : "mark as destination"}
-            title={isMarked ? "移動先マーク解除" : "移動先にマーク"}
+            onClick={() => onOpenSecondaryDir(p)}
+            aria-label="右ペインで開く"
+            title="右ペインで開く"
           >
-            <FontAwesomeIcon icon={faBookmark} />
+            <FontAwesomeIcon icon={faFolderArrowRight} />
           </button>
         </div>
 

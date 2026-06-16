@@ -14,9 +14,10 @@ export function normalizeExifDateTime(v: unknown): string | null {
 export function pickExifDateKey(exif: any): string | null {
   const candidates = [
     exif?.DateTimeOriginal,
-    exif?.CreateDate,
+    exif?.CreationDate,
     exif?.MediaCreateDate,
     exif?.TrackCreateDate,
+    exif?.CreateDate,
     exif?.ModifyDate,
     exif?.FileModifyDate,
   ];

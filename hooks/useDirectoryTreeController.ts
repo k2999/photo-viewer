@@ -4,16 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizeDir } from "@/lib/path";
 import type { TreeNode } from "@/components/DirectoryTree";
 import { ancestorPathsOf, findNodeByPath, hasChildren } from "@/lib/tree";
-
-type DropPayload = { kind: "photoViewer:moveItems"; items: string[] };
+import { readMoveItems } from "@/lib/dnd/movePayload";
 
 export type UseDirectoryTreeControllerArgs = {
   tree: TreeNode | null;
   currentDir: string;
   isFocused: boolean;
-  markedDir: string | null;
   onSelectDir: (path: string) => void;
-  onMarkDir: (path: string | null) => void;
+  onOpenSecondaryDir: (path: string) => void;
   onDropItems: (destDir: string, items: string[]) => void;
 };
 
@@ -39,16 +37,15 @@ export type DirectoryTreeController = {
   collapseOrParent: () => void;
   expandOrFirstChild: () => void;
   enter: () => void;
-  toggleMark: () => void;
+  openSecondary: () => void;
 };
 
 export function useDirectoryTreeController({
   tree,
   currentDir,
   isFocused,
-  markedDir,
   onSelectDir,
-  onMarkDir,
+  onOpenSecondaryDir,
   onDropItems,
 }: UseDirectoryTreeControllerArgs): DirectoryTreeController {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
@@ -94,19 +91,6 @@ export function useDirectoryTreeController({
     [clearHoverTimer]
   );
 
-  const readMoveItemsFromDataTransfer = useCallback((dt: DataTransfer): string[] | null => {
-    try {
-      const raw = dt.getData("application/json");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as DropPayload;
-      if (parsed?.kind !== "photoViewer:moveItems") return null;
-      if (!Array.isArray(parsed.items)) return null;
-      return parsed.items.map(String);
-    } catch {
-      return null;
-    }
-  }, []);
-
   const isInternalMoveDnD = useCallback((dt: DataTransfer) => {
     const types = Array.from(dt.types ?? []);
     return types.includes("application/json");
@@ -127,16 +111,19 @@ export function useDirectoryTreeController({
     setFocusedPathState(normalizeDir(path || "."));
   }, []);
 
-  const ancestorPaths = useMemo(() => ancestorPathsOf(currentDir), [currentDir]);
+  const ancestorPathsToReveal = useMemo(
+    () => ancestorPathsOf(currentDir).slice(0, -1),
+    [currentDir]
+  );
 
   useEffect(() => {
     if (!tree) return;
-    if (ancestorPaths.length === 0) return;
+    if (ancestorPathsToReveal.length === 0) return;
 
     setExpanded((prev) => {
       let changed = false;
       const next = new Set(prev);
-      for (const p of ancestorPaths) {
+      for (const p of ancestorPathsToReveal) {
         if (!next.has(p)) {
           next.add(p);
           changed = true;
@@ -144,7 +131,7 @@ export function useDirectoryTreeController({
       }
       return changed ? next : prev;
     });
-  }, [tree, ancestorPaths]);
+  }, [tree, ancestorPathsToReveal]);
 
   useEffect(() => {
     if (!activeRef.current) return;
@@ -275,11 +262,10 @@ export function useDirectoryTreeController({
     onSelectDir(p);
   }, [focusedPath, onSelectDir]);
 
-  const doMarkToggle = useCallback(() => {
+  const doOpenSecondary = useCallback(() => {
     const p = normalizeDir(focusedPath || ".");
-    const isMarked = !!markedDir && normalizeDir(markedDir) === p;
-    onMarkDir(isMarked ? null : p);
-  }, [focusedPath, markedDir, onMarkDir]);
+    onOpenSecondaryDir(p);
+  }, [focusedPath, onOpenSecondaryDir]);
 
   const onRowDragEnter = useCallback(
     (p: string, expandable: boolean, expandedOpen: boolean, dt: DataTransfer) => {
@@ -316,11 +302,11 @@ export function useDirectoryTreeController({
     (p: string, dt: DataTransfer) => {
       setDragOverPath(null);
       clearHoverTimer();
-      const items = readMoveItemsFromDataTransfer(dt);
+      const items = readMoveItems(dt);
       if (!items || items.length === 0) return;
       onDropItems(normalizeDir(p), items);
     },
-    [clearHoverTimer, onDropItems, readMoveItemsFromDataTransfer]
+    [clearHoverTimer, onDropItems]
   );
 
   const cursorDown = useCallback(() => {
@@ -353,11 +339,11 @@ export function useDirectoryTreeController({
     doEnter();
   }, [tree, isFocused, doEnter]);
 
-  const toggleMark = useCallback(() => {
+  const openSecondary = useCallback(() => {
     if (!tree) return;
     if (!isFocused) return;
-    doMarkToggle();
-  }, [tree, isFocused, doMarkToggle]);
+    doOpenSecondary();
+  }, [tree, isFocused, doOpenSecondary]);
 
   return {
     expanded,
@@ -377,6 +363,6 @@ export function useDirectoryTreeController({
     collapseOrParent,
     expandOrFirstChild,
     enter,
-    toggleMark,
+    openSecondary,
   };
 }

@@ -14,6 +14,7 @@
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/pro-solid-svg-icons": "^7.1.0",
     "@fortawesome/react-fontawesome": "^3.1.1",
+    "japanese-holidays": "^1.0.10",
     "next": "14.2.3",
     "node-addon-api": "^8.5.0",
     "node-gyp": "^12.1.0",

@@ -12,7 +12,6 @@ export type UseBulkActionsArgs = {
   checked: Set<string>;
   setChecked: React.Dispatch<React.SetStateAction<Set<string>>>;
   reload: () => void;
-  markedDir: string | null;
   askConflict: (args: { item: string; dest: string; existingName: string }) => Promise<ConflictDecision>;
 };
 
@@ -20,7 +19,6 @@ export function useBulkActions({
   checked,
   setChecked,
   reload,
-  markedDir,
   askConflict,
 }: UseBulkActionsArgs) {
   const handleBulkDelete = useCallback(async () => {
@@ -120,12 +118,5 @@ export function useBulkActions({
     [askConflict, setChecked] // reload は現在未使用なので依存不要
   );
 
-  const handleMoveToMarked = useCallback(async () => {
-    if (checked.size === 0) return;
-    if (!markedDir) return;
-    if (!window.confirm(`${checked.size} 件を「${markedDir}」へ移動しますか？`)) return;
-    return await handleMoveItemsToDest(markedDir, Array.from(checked));
-  }, [checked, markedDir, handleMoveItemsToDest]);
-
-  return { handleBulkDelete, handleMoveToMarked, handleMoveItemsToDest };
+  return { handleBulkDelete, handleMoveItemsToDest };
 }

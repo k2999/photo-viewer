@@ -7,19 +7,23 @@ import {
   type Entry,
   type EntryKey,
   type GridKeyboardController,
+  type CalendarWeekStart,
+  type TimelineSlotMinutes,
 } from "@/components/ViewerContext";
 import type { GridControllerDeps } from "@/components/ViewerContext";
 import { entryKeyOfSelected } from "@/lib/entryKey";
 import { pickExifDateKey } from "@/lib/exifDateKey";
 import { setStackedThumbDragImage } from "@/lib/dnd/stackedThumbDragImage";
+import { writeMoveItems } from "@/lib/dnd/movePayload";
 import { useViewerNavigator } from "@/hooks/useViewerNavigator";
 import { useDirThumbs } from "@/hooks/useDirThumbs";
 import { useDirEntries } from "@/hooks/useDirEntries";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { useSelectedEntrySync } from "@/hooks/useSelectedEntrySync";
-import { abortAllExifRequests, fetchExif, getCachedExif, useExif } from "@/hooks/useExif";
+import { abortAllExifRequests, fetchExif, getCachedExif, refreshExifCache, useExif } from "@/hooks/useExif";
 import { useScrollFollowSelected } from "@/hooks/useScrollFollowSelected";
 import { PENDING_KEY, type ConflictDecision } from "@/lib/viewerGrid";
+import { parseDateFolder, type DateFolderInfo } from "@/lib/dateFolder";
 
 export type GridController = {
   currentDir: string;
@@ -65,8 +69,18 @@ export type GridController = {
 
   cardWidth: number;
   setCardWidth: (px: number) => void;
-  focusTarget: "tree" | "grid";
-  markedDir: string | null;
+  viewMode: "grid" | "timeline" | "calendar";
+  setViewMode: (mode: "grid" | "timeline" | "calendar") => void;
+  timelineTrimEmptyHours: boolean;
+  setTimelineTrimEmptyHours: (trim: boolean) => void;
+  timelineCollapseEmptyHourGaps: boolean;
+  setTimelineCollapseEmptyHourGaps: (collapse: boolean) => void;
+  timelineSlotMinutes: TimelineSlotMinutes;
+  setTimelineSlotMinutes: (minutes: TimelineSlotMinutes) => void;
+  calendarWeekStart: CalendarWeekStart;
+  setCalendarWeekStart: (weekStart: CalendarWeekStart) => void;
+  dateFolderInfo: DateFolderInfo;
+  focusTarget: "tree" | "grid" | "secondaryGrid";
 
   dirThumbs: Record<string, string[]>;
   fetchDirThumbs: (dirPath: string) => void;
@@ -77,6 +91,9 @@ export type GridController = {
 
   handleBulkDelete: () => Promise<void> | void;
   handleMoveItemsToDest: (destDir: string, items: string[]) => Promise<string[] | null | undefined>;
+  handleRefreshExifCache: () => Promise<void> | void;
+  exifRefreshBusy: boolean;
+  reload: () => void;
   removeEntriesByRelativePath: (paths: string[]) => void;
 
   gridRef: React.RefObject<HTMLDivElement>;
@@ -118,9 +135,17 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     deselectAll,
     cardWidth,
     setCardWidth,
-    setMoveToDir,
+    viewMode,
+    setViewMode,
+    timelineTrimEmptyHours,
+    setTimelineTrimEmptyHours,
+    timelineCollapseEmptyHourGaps,
+    setTimelineCollapseEmptyHourGaps,
+    timelineSlotMinutes,
+    setTimelineSlotMinutes,
+    calendarWeekStart,
+    setCalendarWeekStart,
     setGridKeyboardController,
-    markedDir,
   } = viewer;
 
   const nav = useViewerNavigator();
@@ -137,6 +162,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
   } = useDirEntries(currentDir);
 
   const listedKeys = useMemo(() => entries.map((e) => entryKeyOf(e)), [entries]);
+  const dateFolderInfo = useMemo(() => parseDateFolder(currentDir), [currentDir]);
 
   useEffect(() => {
     registerListedKeys(listedKeys);
@@ -172,26 +198,14 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     checked,
     setChecked,
     reload,
-    markedDir,
     askConflict,
   });
-
-  useEffect(() => {
-    setMoveToDir((destDir: string, items: string[]) => {
-      void (async () => {
-        const moved = await handleMoveItemsToDest(destDir, items);
-        if (moved && moved.length > 0) {
-          removeEntriesByRelativePath(moved);
-        }
-      })();
-    });
-    return () => setMoveToDir(null);
-  }, [handleMoveItemsToDest, setMoveToDir, removeEntriesByRelativePath]);
 
   const selectedEntry = entries[selectedIndex] ?? null;
 
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [dateKeyMap, setDateKeyMap] = useState<Record<string, string | null>>({});
+  const [exifRefreshBusy, setExifRefreshBusy] = useState(false);
 
   const dateKeyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -211,6 +225,28 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     selectedEnabled ? selectedEntry!.relativePath : null,
     selectedEnabled
   );
+
+  const handleRefreshExifCache = useCallback(() => {
+    void (async () => {
+      if (checked.size === 0) return;
+      if (exifRefreshBusy) return;
+      setExifRefreshBusy(true);
+      try {
+        const results = await refreshExifCache(Array.from(checked), true);
+        setDateKeyMap((prev) => {
+          const next = { ...prev };
+          for (const result of results) {
+            next[result.path] = result.exif ? pickExifDateKey(result.exif) : null;
+          }
+          return next;
+        });
+      } catch (e) {
+        console.error("exif refresh failed", e);
+      } finally {
+        setExifRefreshBusy(false);
+      }
+    })();
+  }, [checked, exifRefreshBusy]);
 
   useEffect(() => {
     if (!selectedEnabled) {
@@ -626,7 +662,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     if (!el) return;
 
     const measure = () => {
-      const kids = Array.from(el.children) as HTMLElement[];
+      const kids = Array.from(el.querySelectorAll<HTMLElement>("[data-idx]"));
       if (kids.length === 0) {
         setGridCols(1);
         return;
@@ -712,8 +748,7 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
   const onCardDragStart = useCallback(
     (ev: React.DragEvent<HTMLDivElement>, key: string) => {
       const items = buildDragItems(key);
-      const payload = JSON.stringify({ kind: "photoViewer:moveItems", items });
-      ev.dataTransfer.setData("application/json", payload);
+      writeMoveItems(ev.dataTransfer, items);
       ev.dataTransfer.effectAllowed = "move";
 
       setStackedThumbDragImage({
@@ -795,8 +830,18 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
 
     cardWidth,
     setCardWidth,
+    viewMode,
+    setViewMode,
+    timelineTrimEmptyHours,
+    setTimelineTrimEmptyHours,
+    timelineCollapseEmptyHourGaps,
+    setTimelineCollapseEmptyHourGaps,
+    timelineSlotMinutes,
+    setTimelineSlotMinutes,
+    calendarWeekStart,
+    setCalendarWeekStart,
+    dateFolderInfo,
     focusTarget,
-    markedDir,
 
     dirThumbs,
     fetchDirThumbs,
@@ -807,6 +852,9 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
 
     handleBulkDelete,
     handleMoveItemsToDest,
+    handleRefreshExifCache,
+    exifRefreshBusy,
+    reload,
     removeEntriesByRelativePath,
 
     gridRef,

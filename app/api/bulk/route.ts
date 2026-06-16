@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import { resolveSafePath } from "../../../lib/fs";
+import { moveExifCache, removeExifCache } from "@/lib/exifCacheServer";
 
 type BulkDelete = { action: "delete"; items: string[] };
 
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         const { abs } = resolveSafePath(item);
         await fs.rm(abs, { recursive: true, force: true });
       }
+      await removeExifCache(body.items);
       return NextResponse.json({ ok: true });
     }
 
@@ -82,6 +84,7 @@ export async function POST(req: NextRequest) {
         const destExists = await exists(destPath);
         if (!destExists) {
           await fs.rename(srcAbs, destPath);
+          await moveExifCache(item, path.join(body.dest, base));
           results.push({ item, status: "moved", destPath: base });
           continue;
         }
@@ -108,6 +111,7 @@ export async function POST(req: NextRequest) {
           // 既存を削除して上書き（ディレクトリも想定し recursive）
           await fs.rm(destPath, { recursive: true, force: true });
           await fs.rename(srcAbs, destPath);
+          await moveExifCache(item, path.join(body.dest, base), { removeDest: true });
           results.push({ item, status: "moved", destPath: base });
           continue;
         }
@@ -115,10 +119,12 @@ export async function POST(req: NextRequest) {
         if (onConflict === "rename") {
           const renamedFull = await makeTildeRenamePath(destAbs, base);
           await fs.rename(srcAbs, renamedFull);
+          const renamedBase = path.basename(renamedFull);
+          await moveExifCache(item, path.join(body.dest, renamedBase));
           results.push({
             item,
             status: "moved",
-            destPath: path.basename(renamedFull),
+            destPath: renamedBase,
           });
           continue;
         }

@@ -7,6 +7,7 @@ export type DirectoryThumbnailProps = {
   dirPath: string;
   thumbs?: string[];
   onNeedThumbs: (dirPath: string) => void;
+  resetOnNavigation?: boolean;
 };
 
 /**
@@ -18,6 +19,7 @@ export function DirectoryThumbnail({
   dirPath,
   thumbs,
   onNeedThumbs,
+  resetOnNavigation = true,
 }: DirectoryThumbnailProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
 
@@ -48,7 +50,12 @@ export function DirectoryThumbnail({
   return (
     <div ref={setEl} className="dir-thumbs">
       {list.map((p) => (
-        <Image key={p} src={`/api/thumb?path=${encodeURIComponent(p)}`} alt={""} />
+        <Image
+          key={p}
+          src={`/api/thumb?path=${encodeURIComponent(p)}`}
+          alt={""}
+          resetOnNavigation={resetOnNavigation}
+        />
       ))}
       {Array.from({ length: empty }).map((_, i) => (
         <div key={i} className="dir-thumb-empty">

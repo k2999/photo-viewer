@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { entryKeyOf, useViewer, type Entry } from "@/components/ViewerContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
@@ -12,6 +14,8 @@ export type PreviewOverlayProps = {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  isChecked?: boolean;
+  onToggleCheck?: () => void;
 };
 
 export function PreviewOverlay({
@@ -22,16 +26,24 @@ export function PreviewOverlay({
   onNext,
   hasPrev,
   hasNext,
+  isChecked: isCheckedOverride,
+  onToggleCheck,
 }: PreviewOverlayProps) {
   const { checked, toggleCheck } = useViewer();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
   if (!isOpen) return null;
   if (!entry) return null;
   if (entry.type === "dir") return null;
   const key = entryKeyOf(entry);
-  const isChecked = checked.has(key);
+  const isChecked = isCheckedOverride ?? checked.has(key);
 
-  return (
+  return createPortal(
     <div className="preview-backdrop">
       <div className="preview-backdrop-click" onClick={onClose} />
       <div className="preview-header">
@@ -46,7 +58,8 @@ export function PreviewOverlay({
               checked={isChecked}
               onChange={(e) => {
                 e.stopPropagation();
-                toggleCheck(key);
+                if (onToggleCheck) onToggleCheck();
+                else toggleCheck(key);
               }}
             />
             <span
@@ -120,6 +133,7 @@ export function PreviewOverlay({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
