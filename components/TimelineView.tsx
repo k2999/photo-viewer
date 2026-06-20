@@ -249,6 +249,7 @@ export function TimelineView({
                             className="timeline-cluster"
                             aria-pressed={isSelected}
                             aria-label={`${formatSlotLabel(slotIndex, slotMinutes)} の写真 ${items.length} 件`}
+                            title={`${formatSlotLabel(slotIndex, slotMinutes)} の写真 ${items.length} 件を表示`}
                             onClick={() => {
                               setSelectedClusterKey((cur) => (cur === clusterKey ? null : clusterKey));
                             }}
@@ -267,7 +268,10 @@ export function TimelineView({
                                       } as CSSProperties
                                     }
                                   >
-                                    {src && <img src={src} alt="" draggable={false} />}
+                                    {src && (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={src} alt="" draggable={false} />
+                                    )}
                                   </span>
                                 );
                               })}

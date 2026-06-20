@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faFile, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { DirectoryThumbnail } from "@/components/DirectoryThumbnail";
 import { EntryCard } from "@/components/EntryCard";
 import { PhotoThumbnail } from "@/components/PhotoThumbnail";
@@ -260,9 +260,10 @@ function SecondaryPaneInner({
           className="toolbar-button"
           onClick={moveSelectedToMain}
           disabled={!canMoveToMain}
+          aria-label="選択項目を左ペインへ移動"
           title="選択項目を左ペインへ移動"
         >
-          <FontAwesomeIcon icon={faArrowLeft} /> 左へ移動
+          <FontAwesomeIcon icon={faArrowLeft} />
         </button>
         <button
           type="button"
@@ -313,7 +314,7 @@ function SecondaryPaneInner({
                 {e.type === "video" && <div className="card-badges"><VideoBadge entry={e} /></div>}
               </>
             ) : (
-              <span>FILE</span>
+              <span title="ファイル"><FontAwesomeIcon icon={faFile} /></span>
             );
 
           return (

@@ -21,6 +21,12 @@ import {
   faFolderUser,
   faFolderXmark,
 } from "@fortawesome/pro-solid-svg-icons";
+import {
+  faEraser,
+  faFloppyDisk,
+  faPalette,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import type {
   FolderDecoration,
   FolderIconKind,
@@ -208,6 +214,8 @@ export function FolderDecorationModal({
                   setSelectedIcon((prev) => (prev === icon ? null : icon))
                 }
                 disabled={saving}
+                aria-label={`アイコンを選択: ${icon}`}
+                title={`アイコンを選択: ${icon}`}
               >
                 <FontAwesomeIcon icon={iconMap[icon]} />
               </button>
@@ -244,8 +252,10 @@ export function FolderDecorationModal({
                 }}
                 onClick={() => setSelectedColor(opt.value)}
                 disabled={saving}
+                aria-label={`色を選択: ${opt.label}`}
+                title={`色を選択: ${opt.label}`}
               >
-                {!opt.value ? opt.label : ""}
+                {!opt.value ? <FontAwesomeIcon icon={faXmark} /> : ""}
               </button>
             ))}
             <button
@@ -262,8 +272,10 @@ export function FolderDecorationModal({
               }}
               onClick={() => setSelectedColor("custom")}
               disabled={saving}
+              aria-label="カスタム色を選択"
+              title="カスタム色を選択"
             >
-              カスタム
+              <FontAwesomeIcon icon={faPalette} />
             </button>
           </div>
 
@@ -346,8 +358,10 @@ export function FolderDecorationModal({
             className="toolbar-button"
             onClick={onCancel}
             disabled={saving}
+            aria-label="装飾編集をキャンセル"
+            title="装飾編集をキャンセル"
           >
-            キャンセル
+            <FontAwesomeIcon icon={faXmark} />
           </button>
           {currentDecoration && (
             <button
@@ -355,8 +369,10 @@ export function FolderDecorationModal({
               className="toolbar-button"
               onClick={handleClear}
               disabled={saving}
+              aria-label="装飾をクリア"
+              title="装飾をクリア"
             >
-              クリア
+              <FontAwesomeIcon icon={faEraser} />
             </button>
           )}
           <button
@@ -364,13 +380,15 @@ export function FolderDecorationModal({
             className="toolbar-button"
             onClick={handleSave}
             disabled={saving}
+            aria-label={saving ? "装飾を保存中" : "装飾を保存"}
+            title={saving ? "装飾を保存中" : "装飾を保存"}
             style={{
               background: "#2563eb",
               color: "#fff",
               borderColor: "#2563eb",
             }}
           >
-            {saving ? "保存中..." : "保存"}
+            <FontAwesomeIcon icon={faFloppyDisk} />
           </button>
         </div>
       </div>

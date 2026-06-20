@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faFolder } from "@fortawesome/free-solid-svg-icons";
 import { Image } from "@/components/Image";
 
 export type DirectoryThumbnailProps = {
@@ -59,7 +61,7 @@ export function DirectoryThumbnail({
       ))}
       {Array.from({ length: empty }).map((_, i) => (
         <div key={i} className="dir-thumb-empty">
-          📁
+          <FontAwesomeIcon icon={faFolder} />
         </div>
       ))}
     </div>

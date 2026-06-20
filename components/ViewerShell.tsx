@@ -2,6 +2,19 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCalendarDays,
+  faChevronLeft,
+  faChevronRight,
+  faClock,
+  faGrip,
+  faKeyboard,
+  faMousePointer,
+  faShareNodes,
+  faTrashCan,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { DirectoryTree, type TreeNode } from "@/components/DirectoryTree";
 import { ExifPanel } from "@/components/ExifPanel";
 import { SecondaryPane } from "@/components/SecondaryPane";
@@ -19,6 +32,36 @@ function findNodeByPath(node: TreeNode | null, path: string): TreeNode | null {
     if (found) return found;
   }
   return null;
+}
+
+function Shortcut({ keys }: { keys: string[] }) {
+  return (
+    <dt className="cheatsheet-shortcut">
+      {keys.map((key, idx) => (
+        <span key={`${key}-${idx}`} className="cheatsheet-shortcut-part">
+          {idx > 0 && <span className="cheatsheet-shortcut-separator">+</span>}
+          <kbd>{key}</kbd>
+        </span>
+      ))}
+    </dt>
+  );
+}
+
+function ShortcutAlternates({ keys }: { keys: string[] }) {
+  return (
+    <dt className="cheatsheet-shortcut">
+      {keys.map((key, idx) => (
+        <span key={`${key}-${idx}`} className="cheatsheet-shortcut-part">
+          {idx > 0 && <span className="cheatsheet-shortcut-separator">/</span>}
+          <kbd>{key}</kbd>
+        </span>
+      ))}
+    </dt>
+  );
+}
+
+function CheatLabel({ children }: { children: ReactNode }) {
+  return <dt className="cheatsheet-label">{children}</dt>;
 }
 
 export function ViewerShell({ children }: { children: ReactNode }) {
@@ -295,10 +338,10 @@ export function ViewerShell({ children }: { children: ReactNode }) {
               className="pane-toggle"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setIsTreeCollapsed((v) => !v)}
-              aria-label={isTreeCollapsed ? "Expand tree pane" : "Collapse tree pane"}
+              aria-label={isTreeCollapsed ? "ツリーを開く" : "ツリーを折り畳む"}
               title={isTreeCollapsed ? "ツリーを開く" : "ツリーを折り畳む"}
             >
-              {isTreeCollapsed ? "»" : "«"}
+              <FontAwesomeIcon icon={isTreeCollapsed ? faChevronRight : faChevronLeft} />
             </button>
           </div>
 
@@ -365,10 +408,10 @@ export function ViewerShell({ children }: { children: ReactNode }) {
               className="pane-toggle"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setIsExifCollapsed((v) => !v)}
-              aria-label={isExifCollapsed ? "Expand exif pane" : "Collapse exif pane"}
+              aria-label={isExifCollapsed ? "EXIFを開く" : "EXIFを折り畳む"}
               title={isExifCollapsed ? "EXIFを開く" : "EXIFを折り畳む"}
             >
-              {isExifCollapsed ? "«" : "»"}
+              <FontAwesomeIcon icon={isExifCollapsed ? faChevronLeft : faChevronRight} />
             </button>
           </div>
 
@@ -390,131 +433,129 @@ export function ViewerShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 className="cheatsheet-close"
-                aria-label="閉じる"
+                aria-label="チートシートを閉じる"
+                title="チートシートを閉じる"
                 onClick={() => setIsCheatSheetOpen(false)}
               >
-                x
+                <FontAwesomeIcon icon={faXmark} />
               </button>
             </div>
             <div className="cheatsheet-grid">
               <section>
-                <h3>共通</h3>
+                <h3><FontAwesomeIcon icon={faKeyboard} /> 共通</h3>
                 <dl>
-                  <dt>?</dt>
+                  <Shortcut keys={["?"]} />
                   <dd>チートシートを表示 / 閉じる</dd>
-                  <dt>Tab</dt>
+                  <Shortcut keys={["Tab"]} />
                   <dd>ツリー / 左ペイン / 右ペインのフォーカス切替</dd>
-                  <dt>Shift + Tab</dt>
+                  <Shortcut keys={["Shift", "Tab"]} />
                   <dd>逆順にフォーカス切替</dd>
-                  <dt>Esc</dt>
+                  <Shortcut keys={["Esc"]} />
                   <dd>プレビュー / 削除レビュー / チートシートを閉じる</dd>
                 </dl>
               </section>
               <section>
-                <h3>一覧</h3>
+                <h3><FontAwesomeIcon icon={faGrip} /> 一覧</h3>
                 <dl>
-                  <dt>h / ←</dt>
+                  <ShortcutAlternates keys={["h", "←"]} />
                   <dd>左へ移動</dd>
-                  <dt>l / →</dt>
+                  <ShortcutAlternates keys={["l", "→"]} />
                   <dd>右へ移動</dd>
-                  <dt>j / ↓</dt>
+                  <ShortcutAlternates keys={["j", "↓"]} />
                   <dd>下へ移動</dd>
-                  <dt>k / ↑</dt>
+                  <ShortcutAlternates keys={["k", "↑"]} />
                   <dd>上へ移動</dd>
-                  <dt>H / J</dt>
+                  <ShortcutAlternates keys={["H", "J"]} />
                   <dd>次の兄弟フォルダへ移動</dd>
-                  <dt>L / K</dt>
+                  <ShortcutAlternates keys={["L", "K"]} />
                   <dd>前の兄弟フォルダへ移動</dd>
-                  <dt>Space</dt>
+                  <Shortcut keys={["Space"]} />
                   <dd>チェック切替</dd>
-                  <dt>Enter</dt>
+                  <Shortcut keys={["Enter"]} />
                   <dd>フォルダに入る / 写真・動画をプレビュー</dd>
-                  <dt>Shift + Enter</dt>
+                  <Shortcut keys={["Shift", "Enter"]} />
                   <dd>一つ上のフォルダへ移動 / プレビューを閉じる</dd>
-                  <dt>Cmd + Enter</dt>
+                  <Shortcut keys={["Cmd", "Enter"]} />
                   <dd>削除レビューを開く</dd>
-                  <dt>Cmd + A</dt>
+                  <Shortcut keys={["Cmd", "A"]} />
                   <dd>表示中の項目をすべてチェック</dd>
-                  <dt>Cmd + Shift + A</dt>
+                  <Shortcut keys={["Cmd", "Shift", "A"]} />
                   <dd>表示中のチェックを解除</dd>
-                  <dt>b</dt>
+                  <Shortcut keys={["b"]} />
                   <dd>バースト選択</dd>
                 </dl>
               </section>
               <section>
-                <h3>削除レビュー</h3>
+                <h3><FontAwesomeIcon icon={faTrashCan} /> 削除レビュー</h3>
                 <dl>
-                  <dt>h / ←</dt>
+                  <ShortcutAlternates keys={["h", "←"]} />
                   <dd>前の候補へ移動</dd>
-                  <dt>l / →</dt>
+                  <ShortcutAlternates keys={["l", "→"]} />
                   <dd>次の候補へ移動</dd>
-                  <dt>d</dt>
+                  <Shortcut keys={["d"]} />
                   <dd>現在の候補に削除マーク</dd>
-                  <dt>Esc</dt>
+                  <Shortcut keys={["Esc"]} />
                   <dd>削除レビューを閉じる</dd>
                 </dl>
               </section>
               <section>
-                <h3>ツリー</h3>
+                <h3><FontAwesomeIcon icon={faShareNodes} /> ツリー</h3>
                 <dl>
-                  <dt>j / k</dt>
+                  <ShortcutAlternates keys={["j", "k"]} />
                   <dd>カーソル移動</dd>
-                  <dt>h / l</dt>
+                  <ShortcutAlternates keys={["h", "l"]} />
                   <dd>閉じる / 開く</dd>
-                  <dt>Enter</dt>
+                  <Shortcut keys={["Enter"]} />
                   <dd>フォルダへ移動</dd>
-                  <dt>Shift + Enter</dt>
+                  <Shortcut keys={["Shift", "Enter"]} />
                   <dd>右ペインでフォルダを開く</dd>
                 </dl>
               </section>
               <section>
-                <h3>マウス操作</h3>
+                <h3><FontAwesomeIcon icon={faMousePointer} /> マウス操作</h3>
                 <dl>
-                  <dt>ダブルクリック</dt>
+                  <CheatLabel>ダブルクリック</CheatLabel>
                   <dd>フォルダに入る / 写真・動画をプレビュー</dd>
-                  <dt>Shift + チェック</dt>
+                  <dt className="cheatsheet-shortcut">
+                    <span className="cheatsheet-shortcut-part"><kbd>Shift</kbd></span>
+                    <span className="cheatsheet-shortcut-part">
+                      <span className="cheatsheet-shortcut-separator">+</span>
+                      <span className="cheatsheet-label">チェック</span>
+                    </span>
+                  </dt>
                   <dd>前回チェック位置から範囲チェック</dd>
-                  <dt>Shift + ツリークリック</dt>
+                  <dt className="cheatsheet-shortcut">
+                    <span className="cheatsheet-shortcut-part"><kbd>Shift</kbd></span>
+                    <span className="cheatsheet-shortcut-part">
+                      <span className="cheatsheet-shortcut-separator">+</span>
+                      <span className="cheatsheet-label">ツリークリック</span>
+                    </span>
+                  </dt>
                   <dd>右ペインでフォルダを開く</dd>
-                  <dt>ドラッグ</dt>
+                  <CheatLabel>ドラッグ</CheatLabel>
                   <dd>チェック項目を左右ペイン間で移動</dd>
-                  <dt>ツリーの右ペインボタン</dt>
-                  <dd>右ペインでフォルダを開く</dd>
                 </dl>
               </section>
               <section>
-                <h3>タイムライン</h3>
+                <h3><FontAwesomeIcon icon={faClock} /> タイムライン</h3>
                 <dl>
-                  <dt>クリック</dt>
+                  <CheatLabel>クリック</CheatLabel>
                   <dd>スロット内の写真・動画を下に一覧表示</dd>
-                  <dt>Option + ホイール</dt>
+                  <dt className="cheatsheet-shortcut">
+                    <span className="cheatsheet-shortcut-part"><kbd>Option</kbd></span>
+                    <span className="cheatsheet-shortcut-part">
+                      <span className="cheatsheet-shortcut-separator">+</span>
+                      <span className="cheatsheet-label">ホイール</span>
+                    </span>
+                  </dt>
                   <dd>スロット間隔を変更</dd>
-                  <dt>サブツールバー</dt>
-                  <dd>間隔と空き時間の詰め方を変更</dd>
                 </dl>
               </section>
               <section>
-                <h3>カレンダー</h3>
+                <h3><FontAwesomeIcon icon={faCalendarDays} /> カレンダー</h3>
                 <dl>
-                  <dt>対象フォルダ</dt>
-                  <dd>yyyy/mm 形式の月フォルダで表示</dd>
-                  <dt>ダブルクリック</dt>
+                  <CheatLabel>ダブルクリック</CheatLabel>
                   <dd>日付フォルダに入る</dd>
-                  <dt>サブツールバー</dt>
-                  <dd>週の始まりを変更</dd>
-                </dl>
-              </section>
-              <section>
-                <h3>ツールバー</h3>
-                <dl>
-                  <dt>削除</dt>
-                  <dd>チェック項目を削除</dd>
-                  <dt>移動</dt>
-                  <dd>左右ペイン間でチェック項目を移動</dd>
-                  <dt>EXIF更新</dt>
-                  <dd>選択したファイル / フォルダのキャッシュを更新</dd>
-                  <dt>サイズ</dt>
-                  <dd>一覧とタイムライン下のサムネイルサイズを変更</dd>
                 </dl>
               </section>
             </div>

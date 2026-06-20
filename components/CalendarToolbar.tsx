@@ -1,5 +1,7 @@
 "use client";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalendarDays } from "@fortawesome/free-solid-svg-icons";
 import type { CalendarWeekStart } from "@/components/ViewerContext";
 
 export type CalendarToolbarProps = {
@@ -13,7 +15,9 @@ export function CalendarToolbar({
 }: CalendarToolbarProps) {
   return (
     <div className="sub-toolbar">
-      <span className="sub-toolbar-title">カレンダー</span>
+      <span className="sub-toolbar-title" title="カレンダー">
+        <FontAwesomeIcon icon={faCalendarDays} /> カレンダー
+      </span>
       <label className="toolbar-select-label" title="カレンダーの週の始まり">
         週の始まり
         <select

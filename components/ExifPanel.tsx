@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCamera } from "@fortawesome/free-solid-svg-icons";
 import type { Entry } from "@/components/ViewerContext";
 import { useExif } from "@/hooks/useExif";
 
@@ -10,7 +11,9 @@ export function ExifPanel({ entry }: { entry: Entry | null }) {
 
   return (
     <div className="exif-panel">
-      <div className="exif-title">EXIF</div>
+      <div className="exif-title" title="EXIF情報">
+        <FontAwesomeIcon icon={faCamera} /> EXIF
+      </div>
 
       {loading && <div>loading...</div>}
 

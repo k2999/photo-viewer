@@ -1,5 +1,16 @@
 "use client";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCalendarDays,
+  faImages,
+  faMagnifyingGlassPlus,
+  faRotate,
+  faTableCells,
+  faTrash,
+  faClock,
+} from "@fortawesome/free-solid-svg-icons";
+
 export type ToolbarProps = {
   checkedCount: number;
   onBulkDelete: () => void;
@@ -31,23 +42,33 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <span>{checkedCount} 件選択中</span>
-      <button className="toolbar-button" onClick={onBulkDelete}>
-        削除
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={onBulkDelete}
+        aria-label="チェック項目を削除"
+        title="チェック項目を削除"
+      >
+        <FontAwesomeIcon icon={faTrash} />
       </button>
       <button
+        type="button"
         className="toolbar-button"
         onClick={onSelectBurst}
+        aria-label="バースト選択"
         title="フォーカス中の写真と、撮影時刻が1秒以内で連鎖する前後の写真をまとめて選択"
       >
-        バースト選択
+        <FontAwesomeIcon icon={faImages} />
       </button>
       <button
+        type="button"
         className="toolbar-button"
         onClick={onRefreshExifCache}
         disabled={checkedCount === 0 || exifRefreshBusy}
+        aria-label={exifRefreshBusy ? "EXIFキャッシュを更新中" : "EXIFキャッシュを強制更新"}
         title="選択中のファイルやフォルダ配下のEXIFキャッシュを強制更新"
       >
-        {exifRefreshBusy ? "EXIF更新中" : "EXIF更新"}
+        <FontAwesomeIcon icon={faRotate} spin={exifRefreshBusy} />
       </button>
       <div className="toolbar-segmented" aria-label="表示モード">
         <button
@@ -55,8 +76,10 @@ export function Toolbar({
           className="toolbar-segment"
           data-active={viewMode === "grid" ? "true" : "false"}
           onClick={() => onViewModeChange("grid")}
+          aria-label="一覧表示"
+          title="一覧表示"
         >
-          一覧
+          <FontAwesomeIcon icon={faTableCells} />
         </button>
         {!canUseCalendar && (
           <button
@@ -64,8 +87,10 @@ export function Toolbar({
             className="toolbar-segment"
             data-active={viewMode === "timeline" ? "true" : "false"}
             onClick={() => onViewModeChange("timeline")}
+            aria-label="タイムライン表示"
+            title="タイムライン表示"
           >
-            タイムライン
+            <FontAwesomeIcon icon={faClock} />
           </button>
         )}
         {canUseCalendar && (
@@ -74,12 +99,15 @@ export function Toolbar({
             className="toolbar-segment"
             data-active={viewMode === "calendar" ? "true" : "false"}
             onClick={() => onViewModeChange("calendar")}
+            aria-label="カレンダー表示"
+            title="カレンダー表示"
           >
-            カレンダー
+            <FontAwesomeIcon icon={faCalendarDays} />
           </button>
         )}
       </div>
       <label
+        title="一覧とタイムライン下のサムネイルサイズを変更"
         style={{
           marginLeft: 12,
           fontSize: 11,
@@ -88,7 +116,7 @@ export function Toolbar({
           gap: 8,
         }}
       >
-        サイズ
+        <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
         <input
           type="range"
           min={100}
@@ -99,7 +127,6 @@ export function Toolbar({
         />
         <span style={{ width: 44, textAlign: "right" }}>{cardWidth}px</span>
       </label>
-      <div className="toolbar-spacer">hjkl:移動 / Space:チェック / Enter:開く / b:バースト選択</div>
     </div>
   );
 }

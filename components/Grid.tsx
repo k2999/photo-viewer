@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRight } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRight, faFile } from "@fortawesome/free-solid-svg-icons";
 import { useGridController } from "@/hooks/useGridController";
 import { DirectoryThumbnail } from "@/components/DirectoryThumbnail";
 import { EntryCard } from "@/components/EntryCard";
@@ -135,6 +135,7 @@ export function Grid() {
     c.handleBulkDelete,
     c.handleRefreshExifCache,
     c.selectBurst,
+    c.setCardWidth,
     c.setViewMode,
     canUseCalendar,
     effectiveViewMode,
@@ -170,9 +171,10 @@ export function Grid() {
             className="toolbar-button"
             onClick={moveCheckedToSecondary}
             disabled={!canMoveToSecondary}
+            aria-label="選択項目を右ペインへ移動"
             title={secondaryDir ? `右ペインへ移動: ${secondaryDir}` : "ツリーから右ペインを開いてください"}
           >
-            右へ移動 <FontAwesomeIcon icon={faArrowRight} />
+            <FontAwesomeIcon icon={faArrowRight} />
           </button>
         </div>
       )}
@@ -265,7 +267,7 @@ export function Grid() {
                     onNeedThumbs={c.fetchDirThumbs}
                   />
                 ) : (
-                  <span>FILE</span>
+                  <span title="ファイル"><FontAwesomeIcon icon={faFile} /></span>
                 );
 
               return (
@@ -369,7 +371,7 @@ export function Grid() {
                     onNeedThumbs={c.fetchDirThumbs}
                   />
                 ) : (
-                  <span>FILE</span>
+                  <span title="ファイル"><FontAwesomeIcon icon={faFile} /></span>
                 );
 
               return (
@@ -466,7 +468,7 @@ export function Grid() {
                   onNeedThumbs={c.fetchDirThumbs}
                 />
               ) : (
-                <span>📄</span>
+                <span title="ファイル"><FontAwesomeIcon icon={faFile} /></span>
               );
 
             return (

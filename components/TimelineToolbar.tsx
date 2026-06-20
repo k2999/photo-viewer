@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faClock, faCompress } from "@fortawesome/free-solid-svg-icons";
 import {
   TIMELINE_SLOT_MINUTES_OPTIONS,
   type TimelineSlotMinutes,
@@ -38,7 +40,9 @@ export function TimelineToolbar({
 
   return (
     <div className="sub-toolbar">
-      <span className="sub-toolbar-title">タイムライン</span>
+      <span className="sub-toolbar-title" title="タイムライン">
+        <FontAwesomeIcon icon={faClock} /> タイムライン
+      </span>
       <label className="toolbar-select-label" title="タイムラインの1スロットの時間">
         間隔
         <select
@@ -70,7 +74,7 @@ export function TimelineToolbar({
           checked={trimEmptyHours}
           onChange={(e) => onTrimEmptyHoursChange(e.target.checked)}
         />
-        前後の空き時間を詰める
+        <FontAwesomeIcon icon={faCompress} /> 前後の空き時間を詰める
       </label>
       <label
         className="toolbar-check"
@@ -81,7 +85,7 @@ export function TimelineToolbar({
           checked={collapseEmptyHourGaps}
           onChange={(e) => onCollapseEmptyHourGapsChange(e.target.checked)}
         />
-        間の空き時間を詰める
+        <FontAwesomeIcon icon={faCompress} /> 間の空き時間を詰める
       </label>
       <span className="sub-toolbar-hint">Option + ホイールで間隔変更</span>
     </div>

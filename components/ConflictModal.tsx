@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faFileImport,
+  faForwardStep,
+  faPenToSquare,
+} from "@fortawesome/free-solid-svg-icons";
 import type { ConflictDecision } from "@/lib/viewerGrid";
 
 export type ConflictModalProps = {
@@ -68,22 +74,31 @@ export function ConflictModal({ open, item, dest, existingName, onResolve }: Con
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
+            type="button"
             className="toolbar-button"
             onClick={() => onResolve({ strategy: "skip", applyToAll })}
+            aria-label="この項目をスキップ"
+            title="この項目をスキップ"
           >
-            スキップ
+            <FontAwesomeIcon icon={faForwardStep} />
           </button>
           <button
+            type="button"
             className="toolbar-button"
             onClick={() => onResolve({ strategy: "rename", applyToAll })}
+            aria-label="リネームして移動"
+            title="リネームして移動（~1）"
           >
-            リネーム（~1）
+            <FontAwesomeIcon icon={faPenToSquare} />
           </button>
           <button
+            type="button"
             className="toolbar-button"
             onClick={() => onResolve({ strategy: "overwrite", applyToAll })}
+            aria-label="既存ファイルを上書き"
+            title="既存ファイルを上書き"
           >
-            上書き
+            <FontAwesomeIcon icon={faFileImport} />
           </button>
         </div>
       </div>

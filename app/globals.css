@@ -117,12 +117,17 @@ a {
 }
 
 .cheatsheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 26px;
   height: 26px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  padding: 0;
   background: #fff;
   cursor: pointer;
+  line-height: 1;
 }
 
 .cheatsheet-close:hover {
@@ -151,6 +156,50 @@ a {
 
 .cheatsheet dt {
   align-self: start;
+  color: #222;
+  font-size: 11px;
+}
+
+.cheatsheet-shortcut {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 112px;
+}
+
+.cheatsheet-shortcut-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cheatsheet-shortcut kbd {
+  display: inline-flex;
+  align-items: center;
+  min-height: 19px;
+  padding: 2px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f7f7f7;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  color: #222;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cheatsheet-shortcut-separator {
+  color: #777;
+  font-size: 10px;
+}
+
+.cheatsheet-label {
+  display: inline-flex;
+  align-items: center;
+  max-width: 112px;
+  align-self: start;
   padding: 2px 6px;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -158,7 +207,8 @@ a {
   color: #222;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
-  white-space: nowrap;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .cheatsheet dd {
@@ -353,12 +403,6 @@ a {
   padding: 2px 6px;
   background: #fff;
   font-size: 11px;
-}
-
-.toolbar-spacer {
-  margin-left: auto;
-  font-size: 11px;
-  color: #666;
 }
 
 .sub-toolbar {

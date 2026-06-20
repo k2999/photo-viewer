@@ -175,7 +175,8 @@ export function DirectoryTree(props: Props) {
               tabIndex={-1}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => toggleExpanded(p)}
-              aria-label={expandedOpen ? "collapse" : "expand"}
+              aria-label={expandedOpen ? "フォルダを折り畳む" : "フォルダを展開"}
+              title={expandedOpen ? "フォルダを折り畳む" : "フォルダを展開"}
             >
               <FontAwesomeIcon icon={expandedOpen ? faChevronDown : faChevronRight} />
             </button>

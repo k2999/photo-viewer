@@ -2,7 +2,14 @@
 
 import type { Entry } from "@/components/ViewerContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCheck,
+  faChevronLeft,
+  faChevronRight,
+  faFlag,
+  faRotateLeft,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useRef } from "react";
 
 export type ChooseOverlayProps = {
@@ -74,36 +81,40 @@ export function ChooseOverlay({
             className="toolbar-button"
             onClick={onMarkDelete}
             disabled={!canMarkDelete}
+            aria-label="この画像に削除マークを付ける"
             title="この画像に削除マークを付けて、表示対象から外します"
           >
-            削除マーク
+            <FontAwesomeIcon icon={faFlag} />
           </button>
           <button
             type="button"
             className="toolbar-button"
             onClick={onReset}
             disabled={!canReset}
+            aria-label="削除マークをすべて解除"
             title="削除マークをすべて解除して、選択画像の一覧を復元します"
           >
-            リセット
+            <FontAwesomeIcon icon={faRotateLeft} />
           </button>
           <button
             type="button"
             className="toolbar-button"
             onClick={onConfirm}
             disabled={!!busy}
+            aria-label="削除マークの付いた画像を削除"
             title="削除マークの付いた画像を削除します"
           >
-            確定
+            <FontAwesomeIcon icon={faCheck} />
           </button>
           <button
             type="button"
             className="toolbar-button"
             onClick={onCancel}
             disabled={!!busy}
+            aria-label="削除レビューをキャンセル"
             title="何も行わずに戻ります"
           >
-            キャンセル
+            <FontAwesomeIcon icon={faXmark} />
           </button>
         </div>
       </div>
@@ -116,8 +127,8 @@ export function ChooseOverlay({
           if (hasPrev) onPrev();
         }}
         disabled={!hasPrev || !!busy}
-        aria-label="Previous"
-        title="Previous"
+        aria-label="前の候補へ移動"
+        title="前の候補へ移動"
       >
         <span className="preview-nav-icon">
           <FontAwesomeIcon icon={faChevronLeft} />
@@ -131,8 +142,8 @@ export function ChooseOverlay({
           if (hasNext) onNext();
         }}
         disabled={!hasNext || !!busy}
-        aria-label="Next"
-        title="Next"
+        aria-label="次の候補へ移動"
+        title="次の候補へ移動"
       >
         <span className="preview-nav-icon">
           <FontAwesomeIcon icon={faChevronRight} />

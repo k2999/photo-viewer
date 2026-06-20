@@ -92,8 +92,8 @@ export function PreviewOverlay({
           if (hasPrev) onPrev();
         }}
         disabled={!hasPrev}
-        aria-label="Previous"
-        title="Previous"
+        aria-label="前の項目へ移動"
+        title="前の項目へ移動"
       >
         <span className="preview-nav-icon">
           <FontAwesomeIcon icon={faChevronLeft} />
@@ -107,8 +107,8 @@ export function PreviewOverlay({
           if (hasNext) onNext();
         }}
         disabled={!hasNext}
-        aria-label="Next"
-        title="Next"
+        aria-label="次の項目へ移動"
+        title="次の項目へ移動"
       >
         <span className="preview-nav-icon">
           <FontAwesomeIcon icon={faChevronRight} />

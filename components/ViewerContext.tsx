@@ -11,7 +11,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { pathnameToDir } from "@/lib/path";
+import { normalizeDir, pathnameToDir } from "@/lib/path";
 import type { FolderDecoration } from "@/lib/folderDecorationsTypes";
 
 export type Entry = {
@@ -343,15 +343,26 @@ export function ViewerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openSecondaryPane = useCallback((dir: string) => {
-    setSecondaryDir(dir);
+    const nextDir = normalizeDir(dir);
+    if (isSecondaryPaneOpen && secondaryDir && normalizeDir(secondaryDir) === nextDir) {
+      setIsSecondaryPaneOpen(false);
+      setFocusTarget((target) => (target === "secondaryGrid" ? "grid" : target));
+      try {
+        window.localStorage.setItem("photoViewer:secondaryPaneOpen", "0");
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    setSecondaryDir(nextDir);
     setIsSecondaryPaneOpen(true);
-    setFocusTarget("secondaryGrid");
     try {
       window.localStorage.setItem("photoViewer:secondaryPaneOpen", "1");
     } catch {
       // ignore
     }
-  }, [setSecondaryDir]);
+  }, [isSecondaryPaneOpen, secondaryDir, setSecondaryDir]);
 
   const closeSecondaryPane = useCallback(() => {
     setIsSecondaryPaneOpen(false);
