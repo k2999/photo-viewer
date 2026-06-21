@@ -18,6 +18,162 @@ body {
   background-color: #f5f5f5;
 }
 
+.date-change-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.date-change-modal {
+  width: min(420px, 100%);
+  padding: 18px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+}
+
+.date-change-modal h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.date-change-fields {
+  margin: 16px 0 10px;
+  padding: 0;
+  border: 0;
+}
+
+.date-change-fields legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.date-change-input-group {
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 10px;
+  border: 1px solid #aaa;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.date-change-input-group:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.date-change-input-group[data-invalid="true"] {
+  border-color: #c66;
+}
+
+.date-change-input-part {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.date-change-input-part label {
+  display: grid;
+  gap: 2px;
+  color: #555;
+  font-size: 11px;
+}
+
+.date-change-input-part input {
+  width: 34px;
+  padding: 4px 2px;
+  border: 0;
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.date-change-input-part:first-child input {
+  width: 50px;
+}
+
+.date-change-input-part input:focus {
+  border-bottom-color: #2563eb;
+}
+
+.date-change-separator {
+  padding: 0 3px 5px;
+  color: #777;
+}
+
+.date-change-date-time-gap {
+  width: 14px;
+}
+
+.date-change-field-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 7px;
+}
+
+.date-change-validation {
+  color: #a33;
+  font-size: 11px;
+}
+
+.date-change-validation[data-valid="true"] {
+  color: #357a38;
+}
+
+
+.date-change-note {
+  color: #555;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.date-change-error {
+  margin-top: 12px;
+  padding: 8px;
+  border-radius: 5px;
+  color: #991b1b;
+  background: #fee2e2;
+  white-space: pre-wrap;
+}
+
+.date-change-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.date-change-actions button {
+  padding: 7px 14px;
+  border: 1px solid #bbb;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.date-change-actions button[type="submit"] {
+  border-color: #2563eb;
+  color: #fff;
+  background: #2563eb;
+}
+
+.date-change-actions button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 a {
   color: inherit;
   text-decoration: none;

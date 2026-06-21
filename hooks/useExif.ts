@@ -147,6 +147,10 @@ export function getCachedExif(path: string): ExifPayload | undefined {
   return cache.get(path);
 }
 
+export function invalidateExifCache(paths: string[]) {
+  for (const path of paths) cache.delete(path);
+}
+
 export async function refreshExifCache(paths: string[], recursive = true): Promise<ExifRefreshResult[]> {
   const uniquePaths = Array.from(new Set(paths)).filter(Boolean);
   if (uniquePaths.length === 0) return [];

@@ -21,6 +21,7 @@ const EXIF_TAG_ARGS = [
   "-TrackCreateDate",
   "-ModifyDate",
   "-FileModifyDate",
+  "-FileCreateDate",
   "-ImageWidth",
   "-ImageHeight",
   "-Duration",

@@ -21,7 +21,7 @@ import { useDirEntries } from "@/hooks/useDirEntries";
 import { useBulkActions } from "@/hooks/useBulkActions";
 import { useDeleteReview, type DeleteReviewController } from "@/hooks/useDeleteReview";
 import { useSelectedEntrySync } from "@/hooks/useSelectedEntrySync";
-import { abortAllExifRequests, fetchExif, getCachedExif, refreshExifCache, useExif } from "@/hooks/useExif";
+import { abortAllExifRequests, fetchExif, getCachedExif, invalidateExifCache, refreshExifCache, useExif } from "@/hooks/useExif";
 import { useScrollFollowSelected } from "@/hooks/useScrollFollowSelected";
 import { PENDING_KEY, type ConflictDecision } from "@/lib/viewerGrid";
 import { parseDateFolder, type DateFolderInfo } from "@/lib/dateFolder";
@@ -79,6 +79,16 @@ export type GridController = {
   handleMoveItemsToDest: (destDir: string, items: string[]) => Promise<string[] | null | undefined>;
   handleRefreshExifCache: () => Promise<void> | void;
   exifRefreshBusy: boolean;
+  openDateChange: () => void;
+  submitDateChange: (localDateTime: string) => void;
+  closeDateChange: () => void;
+  dateChangeModal: {
+    open: boolean;
+    count: number;
+    initialValue: string;
+    busy: boolean;
+    error: string | null;
+  };
   reload: () => void;
   removeEntriesByRelativePath: (paths: string[]) => void;
 
@@ -192,6 +202,12 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [dateKeyMap, setDateKeyMap] = useState<Record<string, string | null>>({});
   const [exifRefreshBusy, setExifRefreshBusy] = useState(false);
+  const [dateChangeState, setDateChangeState] = useState({
+    open: false,
+    busy: false,
+    error: null as string | null,
+    items: [] as string[],
+  });
 
   const dateKeyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -233,6 +249,72 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
       }
     })();
   }, [checked, exifRefreshBusy]);
+
+  const formatNowForInput = useCallback(() => {
+    const value = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+  }, []);
+
+  const openDateChange = useCallback(() => {
+    const items = entries
+      .filter(
+        (entry) =>
+          (entry.type === "image" || entry.type === "video") && checked.has(entryKeyOf(entry))
+      )
+      .map((entry) => entry.relativePath);
+    if (items.length === 0) return;
+    setDateChangeState({ open: true, busy: false, error: null, items });
+  }, [checked, entries]);
+
+  const closeDateChange = useCallback(() => {
+    setDateChangeState((prev) => (prev.busy ? prev : { ...prev, open: false, error: null }));
+  }, []);
+
+  const submitDateChange = useCallback((localDateTime: string) => {
+    void (async () => {
+      if (dateChangeState.busy || dateChangeState.items.length === 0) return;
+      setDateChangeState((prev) => ({ ...prev, busy: true, error: null }));
+      try {
+        const response = await fetch("/api/exif/date", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: dateChangeState.items, localDateTime }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+
+        const succeeded = (data?.results ?? []).filter((result: any) => result.status === "updated");
+        const failed = (data?.results ?? []).filter((result: any) => result.status === "failed");
+        invalidateExifCache([
+          ...dateChangeState.items,
+          ...succeeded.map((result: any) => result.path).filter(Boolean),
+        ]);
+
+        if (succeeded.length > 0) {
+          abortAllExifRequests();
+          setChecked(new Set());
+          setDateKeyMap({});
+          reload();
+        }
+
+        if (failed.length > 0) {
+          const message = failed
+            .map((result: any) => `${result.sourcePath}: ${result.error ?? "変更に失敗しました"}`)
+            .join("\n");
+          setDateChangeState((prev) => ({ ...prev, busy: false, error: message }));
+        } else {
+          setDateChangeState({ open: false, busy: false, error: null, items: [] });
+        }
+      } catch (error: any) {
+        setDateChangeState((prev) => ({
+          ...prev,
+          busy: false,
+          error: error?.message ?? "日時の変更に失敗しました",
+        }));
+      }
+    })();
+  }, [dateChangeState.busy, dateChangeState.items, reload, setChecked]);
 
   useEffect(() => {
     if (!selectedEnabled) {
@@ -686,6 +768,16 @@ export function useGridController({ viewer }: UseGridControllerArgs): GridContro
     handleMoveItemsToDest,
     handleRefreshExifCache,
     exifRefreshBusy,
+    openDateChange,
+    submitDateChange,
+    closeDateChange,
+    dateChangeModal: {
+      open: dateChangeState.open,
+      count: dateChangeState.items.length,
+      initialValue: selectedDateKey?.slice(0, 19) ?? formatNowForInput(),
+      busy: dateChangeState.busy,
+      error: dateChangeState.error,
+    },
     reload,
     removeEntriesByRelativePath,
 

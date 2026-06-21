@@ -18,6 +18,7 @@ import { SameTimeBadge } from "@/components/SameTimeBadge";
 import { VideoBadge } from "@/components/VideoBadge";
 import { InvalidDateBadge } from "@/components/InvalidDateBadge";
 import { ConflictModal } from "@/components/ConflictModal";
+import { DateChangeModal } from "@/components/DateChangeModal";
 import { entryKeyOf, useViewer } from "@/components/ViewerContext";
 import { TimelineView } from "@/components/TimelineView";
 import { dateKeyOfExifDateKey } from "@/lib/dateFolder";
@@ -120,7 +121,9 @@ export function Grid() {
         onBulkDelete={c.handleBulkDelete}
         onSelectBurst={c.selectBurst}
         onRefreshExifCache={c.handleRefreshExifCache}
+        onChangeDate={c.openDateChange}
         exifRefreshBusy={c.exifRefreshBusy}
+        dateChangeBusy={c.dateChangeModal.busy}
         cardWidth={c.cardWidth}
         onCardWidthChange={c.setCardWidth}
         viewMode={effectiveViewMode}
@@ -131,9 +134,11 @@ export function Grid() {
   }, [
     c.cardWidth,
     c.checked.size,
+    c.dateChangeModal.busy,
     c.exifRefreshBusy,
     c.handleBulkDelete,
     c.handleRefreshExifCache,
+    c.openDateChange,
     c.selectBurst,
     c.setCardWidth,
     c.setViewMode,
@@ -144,6 +149,15 @@ export function Grid() {
 
   return (
     <>
+      <DateChangeModal
+        open={c.dateChangeModal.open}
+        count={c.dateChangeModal.count}
+        initialValue={c.dateChangeModal.initialValue}
+        busy={c.dateChangeModal.busy}
+        error={c.dateChangeModal.error}
+        onSubmit={c.submitDateChange}
+        onCancel={c.closeDateChange}
+      />
       {effectiveViewMode === "timeline" && (
         <TimelineToolbar
           slotMinutes={c.timelineSlotMinutes}

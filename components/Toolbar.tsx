@@ -16,7 +16,9 @@ export type ToolbarProps = {
   onBulkDelete: () => void;
   onSelectBurst: () => void;
   onRefreshExifCache: () => void;
+  onChangeDate: () => void;
   exifRefreshBusy: boolean;
+  dateChangeBusy: boolean;
   cardWidth: number;
   onCardWidthChange?: (px: number) => void;
   viewMode: "grid" | "timeline" | "calendar";
@@ -29,7 +31,9 @@ export function Toolbar({
   onBulkDelete,
   onSelectBurst,
   onRefreshExifCache,
+  onChangeDate,
   exifRefreshBusy,
+  dateChangeBusy,
   cardWidth,
   onCardWidthChange,
   viewMode,
@@ -69,6 +73,16 @@ export function Toolbar({
         title="選択中のファイルやフォルダ配下のEXIFキャッシュを強制更新"
       >
         <FontAwesomeIcon icon={faRotate} spin={exifRefreshBusy} />
+      </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={onChangeDate}
+        disabled={checkedCount === 0 || dateChangeBusy}
+        aria-label="選択項目の日時を変更"
+        title="選択中の画像・動画の日時とファイル名を変更"
+      >
+        <FontAwesomeIcon icon={faCalendarDays} />
       </button>
       <div className="toolbar-segmented" aria-label="表示モード">
         <button

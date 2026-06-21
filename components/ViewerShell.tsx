@@ -217,6 +217,9 @@ export function ViewerShell({ children }: { children: ReactNode }) {
         return;
       }
 
+      // モーダル内ではブラウザ標準のTab移動や入力キーを優先する。
+      if (target?.closest('[aria-modal="true"]')) return;
+
       if (e.key === "Tab") {
         e.preventDefault();
         const targets: FocusTarget[] =
